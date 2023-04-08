@@ -37,35 +37,11 @@ main(int argc, char **argv) {
     }
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    //pcl::PointCloud<pcl::PointXYZ> cloud;
     std::string filename = argv[1];
-    las2pcd<pcl::PointXYZ>(filename, *cloud);
+    las2pcd<pcl::PointXYZ>(filename, cloud, true);
     //readPC<pcl::PointXYZ>(filename, *cloud);
     std::cout << "points: " << cloud->size() << std::endl;
-
-    // Parameters for sift computation
-    const float min_scale = 0.1f;
-    const int n_octaves = 6;
-    const int n_scales_per_octave = 10;
-    const float min_contrast = 0.5f;
-
-
-    // Estimate the sift interest points using Intensity values from RGB values
-/*    pcl::SIFTKeypoint<pcl::PointXYZ, pcl::PointWithScale> sift;
-    pcl::PointCloud<pcl::PointWithScale> result;
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
-    sift.setSearchMethod(tree);
-    sift.setScales(min_scale, n_octaves, n_scales_per_octave);
-    sift.setMinimumContrast(min_contrast);
-    sift.setInputCloud(cloud);
-    sift.compute(result);*/
-
-    // Copying the pointwithscale to pointxyz so as visualize the cloud
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_temp(new pcl::PointCloud<pcl::PointXYZ>);
-    //copyPointCloud(result, *cloud_temp);
-
-    // Saving the resultant cloud
-    std::cout << "Resulting sift points are of size: " << cloud_temp->size() << std::endl;
-
 
 
 /*
