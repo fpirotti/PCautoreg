@@ -43,24 +43,31 @@ template<typename PointT> inline int las2pcd(std::string filename, pcl::PointClo
         std::cout << "Could not open  " << filename << " - extension: " << pcl::getFileExtension(filename) << std::endl;
         return(-1);
     }
-    LASwriteOpener laswriteopener;
-    laswriteopener.set_file_name("compressed.laz");
-    LASwriter* laswriter = laswriteopener.open(&lasreader->header);
+    //LASwriteOpener laswriteopener;
+    //laswriteopener.set_file_name("compressed.laz");
+    //LASwriter* laswriter = laswriteopener.open(&lasreader->header);
 
     std::cout << "Reading " << filename << " - extension: " << pcl::getFileExtension(filename) << " \nnpoints=" << lasreader->npoints << std::endl;
     int every = lasreader->npoints/1000;
     int n=0;
+    std::cout << "Size before " << cloud.size()  << std::endl;
+    cloud.points.resize(lasreader->npoints);
+    std::cout << "Size after " << cloud.size()   << std::endl;
+
     while (lasreader->read_point()) {
 
         if(n%every==0){
             printProgress( (double)n/lasreader->npoints );
         }
-        laswriter->write_point(&lasreader->point);
+        cloud.points[n].x = lasreader->point.X;
+        cloud.points[n].y = lasreader->point.Y;
+        cloud.points[n].z = lasreader->point.Z;
+       // laswriter->write_point(&lasreader->point);
         n++;
     }
     std::cout << "Finished " << std::endl;
-    laswriter->close();
-    delete laswriter;
+    //laswriter->close();
+    //delete laswriter;
     lasreader->close();
     delete lasreader;
 
