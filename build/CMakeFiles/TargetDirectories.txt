@@ -1,0 +1,3 @@
+/archivio/software/cofit/build/CMakeFiles/cofit.dir
+/archivio/software/cofit/build/CMakeFiles/edit_cache.dir
+/archivio/software/cofit/build/CMakeFiles/rebuild_cache.dir
