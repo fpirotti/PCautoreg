@@ -44,63 +44,92 @@ main(int argc, char **argv) {
     pcl::PointCloud<pcl::Narf36>::Ptr sift_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_descriptor_ptr_master (new pcl::PointCloud<pcl::FPFHSignature33>);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr sift_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr susan_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr iss_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr harris_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr trajkovic_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
     //pcl::PointCloud<pcl::PointXYZ> cloud;
     for(int i =1; i< argc; i++) {
         std::string filename = argv[i];
         if(i==1){
             pcl::console::print_warn("Calculating Keypoints at master object.\n");
-            las2keypoints<pcl::PointXYZ>(filename, KEYPOINTS_cloud_master, true,
-                                         narf_descriptor_ptr_master,  fpfh_descriptor_ptr_master, 15.0f);
+            las2keypoints<pcl::PointXYZ>(filename, true,
+                                         sift_KEYPOINTS_cloud_master,
+                                         susan_KEYPOINTS_cloud_master,
+                                         iss_KEYPOINTS_cloud_master,
+                                         harris_KEYPOINTS_cloud_master,
+                                         nullptr,
+                                         support_size= 15.0f);
+
+
+            pcl::console::print(pcl::console::L_ALWAYS,  "\nSIFT = %d ..."
+                                                         "\nSUSAN keypoints = %d..."
+                                                         "\nISS keypoints  = %d ..."
+                                                         "\nHARRIS keypoints = %d ..."
+                                                         "\ntrajkovic keypoints = %d ...",
+                                sift_KEYPOINTS_cloud_master->size(),
+                                susan_KEYPOINTS_cloud_master->size(),
+                                iss_KEYPOINTS_cloud_master->size(),
+                                harris_KEYPOINTS_cloud_master->size(),
+                                trajkovic_KEYPOINTS_cloud_master->size() );
+
             return(0);
         } else {
-
-            pcl::PointCloud<pcl::Narf36>::Ptr  narf_descriptor_ptr_slave (new pcl::PointCloud<pcl::Narf36>);
-            pcl::PointCloud<pcl::Narf36>::Ptr  sift_descriptor_ptr_slave (new pcl::PointCloud<pcl::Narf36>);
-            pcl::PointCloud<pcl::FPFHSignature33>::Ptr  fpfh_descriptor_ptr_slave (new pcl::PointCloud<pcl::FPFHSignature33>);
-
-            pcl::PointCloud<pcl::PointXYZ>::Ptr KEYPOINTS_cloud_slave (new pcl::PointCloud<pcl::PointXYZ>);
-            las2keypoints<pcl::PointXYZ>(filename, KEYPOINTS_cloud_slave, true,
-                                          narf_descriptor_ptr_slave,  fpfh_descriptor_ptr_slave);
-
-            // Perform alignment
-            pcl::PointCloud<pcl::PointXYZ>::Ptr object_aligned (new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::console::print_highlight ("Starting alignment...\n");
-            pcl::SampleConsensusPrerejective<pcl::PointXYZ ,pcl::PointXYZ ,pcl::FPFHSignature33> align;
-            align.setInputSource (KEYPOINTS_cloud_slave);
-            align.setSourceFeatures ( fpfh_descriptor_ptr_master);
-            align.setInputTarget (KEYPOINTS_cloud_master);
-            align.setTargetFeatures ( fpfh_descriptor_ptr_master);
-            align.setMaximumIterations (50000); // Number of RANSAC iterations
-            align.setNumberOfSamples (3); // Number of points to sample for generating/prerejecting a pose
-            align.setCorrespondenceRandomness (5); // Number of nearest features to use
-            align.setSimilarityThreshold (0.9f); // Polygonal edge length similarity threshold
-            align.setMaxCorrespondenceDistance (2.5f * 0.5); // Inlier threshold
-            align.setInlierFraction (0.25f); // Required inlier fraction for accepting a pose hypothesis
-            {
-                pcl::ScopeTime t("Alignment");
-                align.align (*object_aligned);
-            }
-
-            if (align.hasConverged ())
-            {
-                // Print results
-                printf ("\n");
-                Eigen::Matrix4f transformation = align.getFinalTransformation ();
-                pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
-                pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
-                pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (2,0), transformation (2,1), transformation (2,2));
-                pcl::console::print_info ("\n");
-                pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
-                pcl::console::print_info ("\n");
-                pcl::console::print_info ("Inliers: %i/%i\n", align.getInliers ().size (), KEYPOINTS_cloud_master->size ());
-
-            }
-            else
-            {
-                pcl::console::print_error ("Alignment failed!\n");
-                return (1);
-            }
+//
+//            pcl::PointCloud<pcl::Narf36>::Ptr  narf_descriptor_ptr_slave (new pcl::PointCloud<pcl::Narf36>);
+//            pcl::PointCloud<pcl::Narf36>::Ptr  sift_descriptor_ptr_slave (new pcl::PointCloud<pcl::Narf36>);
+//            pcl::PointCloud<pcl::FPFHSignature33>::Ptr  fpfh_descriptor_ptr_slave (new pcl::PointCloud<pcl::FPFHSignature33>);
+//
+//            pcl::PointCloud<pcl::PointXYZ>::Ptr narf_KEYPOINTS_cloud_slave (new pcl::PointCloud<pcl::PointXYZ>);
+//            pcl::PointCloud<pcl::PointXYZ>::Ptr sift_KEYPOINTS_cloud_slave (new pcl::PointCloud<pcl::PointXYZ>);
+//            pcl::PointCloud<pcl::PointXYZ>::Ptr susan_KEYPOINTS_cloud_slave (new pcl::PointCloud<pcl::PointXYZ>);
+//
+//            las2keypoints<pcl::PointXYZ>(filename, true,
+//                                         narf_KEYPOINTS_cloud_slave,
+//                                         sift_KEYPOINTS_cloud_slave,
+//                                         susan_KEYPOINTS_cloud_slave,
+//                                         narf_descriptor_ptr_slave,
+//                                         sift_descriptor_ptr_slave,
+//                                         fpfh_descriptor_ptr_slave, 10.0f);
+//            // Perform alignment
+//            pcl::PointCloud<pcl::PointXYZ>::Ptr object_aligned (new pcl::PointCloud<pcl::PointXYZ>);
+//            pcl::console::print_highlight ("Starting alignment...\n");
+//            pcl::SampleConsensusPrerejective<pcl::PointXYZ ,pcl::PointXYZ ,pcl::FPFHSignature33> align;
+//            align.setInputSource (narf_KEYPOINTS_cloud_slave);
+//            align.setSourceFeatures ( fpfh_descriptor_ptr_master);
+//            align.setInputTarget (narf_KEYPOINTS_cloud_master);
+//            align.setTargetFeatures ( fpfh_descriptor_ptr_master);
+//            align.setMaximumIterations (50000); // Number of RANSAC iterations
+//            align.setNumberOfSamples (3); // Number of points to sample for generating/prerejecting a pose
+//            align.setCorrespondenceRandomness (5); // Number of nearest features to use
+//            align.setSimilarityThreshold (0.9f); // Polygonal edge length similarity threshold
+//            align.setMaxCorrespondenceDistance (2.5f * 0.5); // Inlier threshold
+//            align.setInlierFraction (0.25f); // Required inlier fraction for accepting a pose hypothesis
+//            {
+//                pcl::ScopeTime t("Alignment");
+//                align.align (*object_aligned);
+//            }
+//
+//            if (align.hasConverged ())
+//            {
+//                // Print results
+//                printf ("\n");
+//                Eigen::Matrix4f transformation = align.getFinalTransformation ();
+//                pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
+//                pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
+//                pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (2,0), transformation (2,1), transformation (2,2));
+//                pcl::console::print_info ("\n");
+//                pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
+//                pcl::console::print_info ("\n");
+//                pcl::console::print_info ("Inliers: %i/%i\n", align.getInliers ().size (), narf_KEYPOINTS_cloud_master->size ());
+//
+//            }
+//            else
+//            {
+//                pcl::console::print_error ("Alignment failed!\n");
+//                return (1);
+//            }
 
         }
     }

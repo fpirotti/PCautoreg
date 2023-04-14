@@ -30,28 +30,80 @@
 #include "readwrite.h"
 
 
-template<typename PointT> inline int readPC(std::string filename, pcl::PointCloud<PointT> &cloud){
+int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
+                  bool calcNormals, bool forceCalcNormals, bool savetopcd){
+    bool alreadyExists = false;
 
+    auto t1 = std::chrono::high_resolution_clock::now();
+    auto t2 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "Reading " << filename << " - extension: " << pcl::getFileExtension(filename) << std::endl;
-    if( pcl::getFileExtension(filename)=="las"  ){
-        std::cout << "Reading " << filename << " - extension: " << pcl::getFileExtension(filename) << std::endl;
+    std::string fileWithoutExt = pcl::getFilenameWithoutExtension(filename).append(".pcd");
 
+    if( std::filesystem::exists( std::filesystem::path(fileWithoutExt) ) ){
+
+        std::cout << "Reading file  " << fileWithoutExt << " exists, reading it... remove file if this is not intended "  << std::endl;
+
+        if(  pcl::io::loadPCDFile( fileWithoutExt, *cloud )==0 ){
+            std::cout << " Successfully read " << fileWithoutExt   << std::endl;
+            alreadyExists=true;
+        }
+
+        return(0);
     }
-    return(0);
 
-    if (pcl::io::loadPLYFile<pcl::PointXYZ>(filename, *cloud) == -1) // load the file
+    if(!alreadyExists && (pcl::getFileExtension(filename)=="las" || pcl::getFileExtension(filename)=="LAS"
+                          || pcl::getFileExtension(filename)=="laz" || pcl::getFileExtension(filename)=="LAZ")  )
     {
-        PCL_ERROR ("Couldn't read PLY file\n");
-        return -1;
-    }
+
+        std::cout << " Reading  " << filename << " - extension: " << pcl::getFileExtension(filename) << std::endl;
+        LASreadOpener lasreadopener;
+        lasreadopener.set_file_name(filename.c_str());
+        LASreader *lasreader = lasreadopener.open();
+        if (lasreader == 0) {
+            std::cout << "Could not open  " << filename << " - extension: " << pcl::getFileExtension(filename) << std::endl;
+            return (-1);
+        }
+        int every = lasreader->npoints / 1000;
+        int n = 0;
+
+        cloud->points.resize(lasreader->npoints);
+        cloud->width = lasreader->npoints;
+        cloud->height = 1;
+
+        while (lasreader->read_point()) {
+
+            if (n % every == 0) {
+                printProgress((double) n / lasreader->npoints);
+            }
+            cloud->points[n].x = lasreader->point.X* lasreader->header.x_scale_factor;
+            cloud->points[n].y = lasreader->point.Y* lasreader->header.x_scale_factor;
+            cloud->points[n].z = lasreader->point.Z* lasreader->header.x_scale_factor;
+            cloud->points[n].intensity = lasreader->point.intensity;
+            // laswriter->write_point(&lasreader->point);
+            n++;
+        }
+
+        t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "\nFinished reading LAS after " << std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() << " seconds. "
+                  << std::endl;
+        lasreader->close();
+        delete lasreader;
 
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZ>(filename, *cloud) == -1) // load the file
-    {
-        PCL_ERROR ("Couldn't read file\n");
-        return -1;
+        if (savetopcd) {
+            std::cout << "Saving to PCD file" << std::endl;
+            t1 = std::chrono::high_resolution_clock::now();
+            pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append(".pcd"), *cloud, true);
+            t2 = std::chrono::high_resolution_clock::now();
+            pcl::console::print_warn(  "Finished saving to %s in %d seconds \n", pcl::getFilenameWithoutExtension(filename).append(std::string(".pcd") ).c_str() ,
+                                       std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count()  );
+        }
+
+
+        return(0);
     }
+
+    return(-1);
 }
 
 
