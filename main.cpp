@@ -43,36 +43,53 @@ main(int argc, char **argv) {
     pcl::PointCloud<pcl::Narf36>::Ptr narf_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
     pcl::PointCloud<pcl::Narf36>::Ptr sift_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_descriptor_ptr_master (new pcl::PointCloud<pcl::FPFHSignature33>);
+    pcl::PointCloud< pcl::Histogram<153>  >::Ptr spin_descriptor_ptr_master (new pcl::PointCloud<pcl::Histogram<153> >);
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr sift_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr susan_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr iss_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr harris_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr trajkovic_KEYPOINTS_cloud_master (new pcl::PointCloud<pcl::PointXYZ>);
+
+    std::map<std::string,  pcl::PointCloud<pcl::PointXYZ>::Ptr > keypoints;
+    keypoints["SIFT"] = sift_KEYPOINTS_cloud_master;
+    keypoints["ISS"] = iss_KEYPOINTS_cloud_master;
+    keypoints["HARRIS"] = harris_KEYPOINTS_cloud_master;
+    keypoints["trajkovic"] = trajkovic_KEYPOINTS_cloud_master;
+    keypoints["SUSAN"] = susan_KEYPOINTS_cloud_master;
+
     //pcl::PointCloud<pcl::PointXYZ> cloud;
     for(int i =1; i< argc; i++) {
         std::string filename = argv[i];
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in(new pcl::PointCloud<pcl::PointXYZI>);
+        if(readPC(filename, cloud_in) < 0 ){
+            pcl::console::print_error("Error reading %s image\n", filename.c_str());
+            return(-1);
+        };
+        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_max(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+        pcl::console::print_warn("  reading %s image\n", filename.c_str());
+        if( getMaxImageWithNormals(filename, cloud_in, cloud_max, cloud_normals) < 0 ){
+            pcl::console::print_error("Error reading max grid %s image\n", filename.c_str());
+            return(-1);
+        };
+
         if(i==1){
+
+
+
+
             pcl::console::print_warn("Calculating Keypoints at master object.\n");
-            las2keypoints<pcl::PointXYZ>(filename, true,
+            las2keypoints<pcl::PointXYZ>(filename,  cloud_max, cloud_normals,
                                          sift_KEYPOINTS_cloud_master,
                                          susan_KEYPOINTS_cloud_master,
                                          iss_KEYPOINTS_cloud_master,
                                          harris_KEYPOINTS_cloud_master,
-                                         nullptr,
+                                         trajkovic_KEYPOINTS_cloud_master,
                                          support_size= 15.0f);
+            for (const auto& [key, value] : keypoints)
+                std::cout << '[' << key << "] = " << value->size() << "; " << std::endl;
 
-
-            pcl::console::print(pcl::console::L_ALWAYS,  "\nSIFT = %d ..."
-                                                         "\nSUSAN keypoints = %d..."
-                                                         "\nISS keypoints  = %d ..."
-                                                         "\nHARRIS keypoints = %d ..."
-                                                         "\ntrajkovic keypoints = %d ...",
-                                sift_KEYPOINTS_cloud_master->size(),
-                                susan_KEYPOINTS_cloud_master->size(),
-                                iss_KEYPOINTS_cloud_master->size(),
-                                harris_KEYPOINTS_cloud_master->size(),
-                                trajkovic_KEYPOINTS_cloud_master->size() );
 
             return(0);
         } else {

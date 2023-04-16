@@ -47,7 +47,6 @@ int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
             std::cout << " Successfully read " << fileWithoutExt   << std::endl;
             alreadyExists=true;
         }
-
         return(0);
     }
 
@@ -90,6 +89,7 @@ int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
         delete lasreader;
 
 
+
         if (savetopcd) {
             std::cout << "Saving to PCD file" << std::endl;
             t1 = std::chrono::high_resolution_clock::now();
@@ -107,3 +107,56 @@ int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
 }
 
 
+int getMaxImageWithNormals(std::string filename,
+                           pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in,
+                            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out,
+                            pcl::PointCloud<pcl::Normal>::Ptr cloud_norm){
+
+
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    //pcl::PointXYZI  minPt, maxPt;
+
+    //pcl::getMinMax3D(*cloud_in, minPt, maxPt);
+
+ 
+    std::cout << "Getting RANGE image" << std::endl;
+    t1 = std::chrono::high_resolution_clock::now();
+
+
+    pcl::GridMaximum<pcl::PointXYZI> maxFilter(1.0f); //(*cloud_in);
+    maxFilter.setInputCloud(cloud_in);
+    maxFilter.filter(*cloud_out);
+
+
+
+    pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ),
+                         *cloud_out, false);
+
+    t2 = std::chrono::high_resolution_clock::now();
+    PCL_WARN  ("Finished calculating max image: saved to  %s after %d seconds \n",
+               pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ).c_str(),
+               std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
+
+
+    /// --------------------------------------------------------
+    /// -----Extract NORMALS of MAX image  ------------ -------
+    /// --------------------------------------------------------
+    std::cout << " --- Getting NORMALS, this step is required ---" << std::endl;
+    t1 = std::chrono::high_resolution_clock::now();
+
+    pcl::NormalEstimationOMP<pcl::PointXYZI,pcl::Normal> nest;
+    nest.setRadiusSearch ( 4);
+    nest.setInputCloud (cloud_out);
+    nest.compute (*cloud_norm);
+    t2 = std::chrono::high_resolution_clock::now();
+    pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append( std::string("_MAXImage_wNormals.pcd") ),
+                         *cloud_norm, false);
+    PCL_WARN  ("Finished calculating NORMALS IN image: saved to  %s after %d seconds \n",
+               pcl::getFilenameWithoutExtension(filename).append( std::string("_MAXImage_wNormals.pcd") ).c_str(),
+               std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
+
+    return(0);
+}
