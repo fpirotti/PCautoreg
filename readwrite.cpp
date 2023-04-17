@@ -160,3 +160,149 @@ int getMaxImageWithNormals(std::string filename,
 
     return(0);
 }
+
+
+
+  int las2keypoints( std::string filename,
+                     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_las_gridMax,
+                     pcl::PointCloud<pcl::Normal>::Ptr cloud_Normals_ptr,
+                     std::map<std::string,  pcl::IndicesPtr  > &keypointMap,
+                      float support_size ) {
+
+
+
+
+      pcl::PointCloud<pcl::PointXYZ>::Ptr KEYPOINTS_cloud   (new pcl::PointCloud<pcl::PointXYZ>);
+    auto t1 = std::chrono::high_resolution_clock::now();
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    /// --------------------------------
+    /// -----Extract SIFT keypoints-----
+    /// --------------------------------
+
+        pcl::console::print_warn( "Getting SIFT KEYPOINTS...\n " );
+        t1 = std::chrono::high_resolution_clock::now();
+
+        constexpr float min_scale = 10.0f;
+        constexpr int n_octaves = 6;
+        constexpr int n_scales_per_octave = 10;
+        constexpr float min_contrast = 5.0f;
+        pcl::SIFTKeypoint <pcl::PointXYZI, pcl::PointWithScale> sift;
+
+        pcl::PointCloud<pcl::PointWithScale> result;
+        pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI> ());
+        sift.setSearchMethod(tree);
+
+        sift.setScales(min_scale, n_octaves, n_scales_per_octave);
+        sift.setMinimumContrast(min_contrast);
+        sift.setInputCloud(cloud_las_gridMax);
+        sift.compute(result);
+
+        int K = result.size();
+        pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+
+      std::vector<int> pointIdxNKNSearch(1);
+      std::vector<float> pointNKNSquaredDistance(1 );
+      pcl::PointCloud<pcl::PointXYZ>::Ptr tmpcloudXYZ (new pcl::PointCloud<pcl::PointXYZ>);
+      pcl::copyPointCloud(*cloud_las_gridMax, *tmpcloudXYZ);
+      kdtree.setInputCloud (tmpcloudXYZ);
+      pcl::IndicesPtr sift_KeypointsIndices(new pcl::Indices) ;
+
+      for(int i=0; i<result.size(); i++){
+          pcl::PointXYZ  pt;
+          pt.x = result.points[i].x;
+          pt.y = result.points[i].y;
+          pt.z = result.points[i].z;
+          kdtree.nearestKSearch( pt , 1, pointIdxNKNSearch, pointNKNSquaredDistance);
+          sift_KeypointsIndices->push_back( pointIdxNKNSearch[0] );
+      }
+
+        keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("SIFT", sift_KeypointsIndices ) );
+
+        pcl::io::savePCDFile (pcl::getFilenameWithoutExtension(filename).append( "__SIFT.pcd" ),
+                              result, false);
+
+        t2 = std::chrono::high_resolution_clock::now();
+        PCL_WARN  (" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
+                   result.size (),
+                   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
+        t1 = std::chrono::high_resolution_clock::now();
+
+
+    /// --------------------------------
+    /// -----Extract HARRIS keypoints-----
+    /// --------------------------------
+
+       pcl::console::print_warn("Getting harris KEYPOINTS...\n ");
+       t1 = std::chrono::high_resolution_clock::now();
+
+       pcl::PointCloud<pcl::PointXYZI>::Ptr pp(new pcl::PointCloud<pcl::PointXYZI>);
+       pcl::HarrisKeypoint3D<pcl::PointXYZI, pcl::PointXYZI, pcl::Normal> harris;
+       pcl::search::KdTree<pcl::PointXYZI>::Ptr harris_tree(new pcl::search::KdTree<pcl::PointXYZI>());
+       harris.setSearchMethod(harris_tree);
+       harris.setNonMaxSupression(true);
+       harris.setThreshold(1e-6);
+
+       harris.setRadius(5);
+       harris.setNormals(cloud_Normals_ptr);
+       harris.setInputCloud(cloud_las_gridMax);
+       harris.compute(*pp);
+       KEYPOINTS_cloud->clear();
+       pcl::copyPointCloud(*pp, *KEYPOINTS_cloud);
+       pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append("__HARRIS.pcd"),
+                            *pp, false);
+      pcl::IndicesPtr  ind(new pcl::Indices) ;
+      pcl::Indices  indConst =      harris.getKeypointsIndices()->indices;
+      for(int i=0; i < indConst.size(); i++ ){
+          ind->push_back( indConst.at(i)  ) ;
+      }
+
+
+      keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("HARRIS", ind ) );
+      // keypointMap["HARRIS"] = harris.getKeypointsIndices();
+       t2 = std::chrono::high_resolution_clock::now();
+       PCL_WARN  (" --- Finished calculating %d == %d harris KEYPOINTS  after %d seconds \n",
+                  pp->size(), keypointMap["HARRIS"]->size(),
+                  std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+
+    t1 = std::chrono::high_resolution_clock::now();
+
+
+    /// --------------------------------
+    /// -----Extract ISS keypoints-----
+    /// --------------------------------
+
+      KEYPOINTS_cloud->clear();
+      pcl::console::print_warn("Getting ISS KEYPOINTS...\n ");
+      t1 = std::chrono::high_resolution_clock::now();
+
+      // pcl::PointCloud<pcl::PointXYZ>::Ptr pp_iss (new pcl::PointCloud<pcl::PointXYZ>);
+      pcl::ISSKeypoint3D<pcl::PointXYZI, pcl::PointXYZ> iss;
+      pcl::search::KdTree<pcl::PointXYZI>::Ptr iss_tree(new pcl::search::KdTree<pcl::PointXYZI>());
+      iss.setSearchMethod(iss_tree);
+      iss.setSalientRadius(support_size / 9);
+      iss.setNonMaxRadius(1);
+      iss.setNormals(cloud_Normals_ptr);
+      iss.setInputCloud(cloud_las_gridMax);
+      iss.compute(*KEYPOINTS_cloud);
+      //pcl::copyPointCloud(*pp, *ISS_keypointsCloud_ptr);
+      pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append("__ISS.pcd"),
+                           *KEYPOINTS_cloud, false);
+
+      pcl::IndicesPtr  ind_iss(new pcl::Indices) ;
+      pcl::Indices  indConst_iss =      iss.getKeypointsIndices()->indices;
+      for(int i=0; i < indConst_iss.size(); i++ ){
+          ind_iss->push_back( indConst_iss.at(i)  ) ;
+      }
+
+     // keypointMap["ISS"] = iss.getKeypointsIndices() ;
+      keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("ISS", ind_iss) );
+      t2 = std::chrono::high_resolution_clock::now();
+      PCL_WARN  (" --- Finished calculating %d ISS KEYPOINTS  after %d seconds \n",
+                 KEYPOINTS_cloud->size(),
+                 std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+      t1 = std::chrono::high_resolution_clock::now();
+
+    return(0);
+
+}
