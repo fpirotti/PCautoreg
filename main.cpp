@@ -1,6 +1,7 @@
 
 #include "readwrite.h"
 #include "keypoints2features.h"
+#include "alignRANSAC.h"
 
 #include <pcl/keypoints/narf_keypoint.h>
 #include <pcl/console/parse.h>
@@ -130,10 +131,13 @@ main(int argc, char **argv) {
 
             pcl::ExtractIndices<pcl::PointXYZI> filter;
             filter.setInputCloud (cloud_max_slave);
-//            filter.setIndices (static_cast<const pcl::IndicesConstPtr>(&keypoints_slave["ISS"]));
-//            // Extract the points in cloud_in referenced by indices_in as a separate point cloud:
-//            filter.filter (*cloud_keypointsTmp_slave);
-//            pcl::copyPointCloud(*cloud_keypointsTmp_slave, *cloud_keypoints_slave);
+            filter.setIndices (keypoints_slave["ISS"]);
+            // Extract the points in cloud_in referenced by indices_in as a separate point cloud:
+            filter.filter (*cloud_keypointsTmp_slave);
+            pcl::copyPointCloud(*cloud_keypointsTmp_slave, *cloud_keypoints_slave);
+
+            alignRANSAC ransac;
+            ransac
 
         }
 
