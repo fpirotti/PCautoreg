@@ -34,9 +34,8 @@ int  keypoints2features(std::string filename,
                                   cloud_normal->size(), cloud_max->size() );
         return(-1);
     }
-    if(cloud_keypoints_indices->size()==0){
-        pcl::console::print_error("No keypoints provided, will return zero\n");
-        return(-1);
+    if(cloud_keypoints_indices == nullptr || cloud_keypoints_indices->size()==0){
+        pcl::console::print_error("No keypoints provided, will return ALL points (%d)\n", cloud_max->size() );
     }
 ////////////////////////////////////
 /// ok now we calculate FPFH features ///
@@ -56,16 +55,63 @@ int  keypoints2features(std::string filename,
     fpfh.setInputNormals(cloud_normal);
     fpfh.setSearchMethod(ktree);
     fpfh.setRadiusSearch(support_size);
-    //pcl::IndicesPtr ptr(cloud_keypoints_indices);
 
-    fpfh.setIndices( cloud_keypoints_indices);
+
+    if(cloud_keypoints_indices == nullptr || cloud_keypoints_indices->size()==0){
+        pcl::console::print_error("No keypoints provided, will return ALL points (%d)\n", cloud_max->size() );
+    } else {
+        fpfh.setIndices( cloud_keypoints_indices);
+    }
 
     fpfh.compute(* FPFH_signature33);
     t2 = std::chrono::high_resolution_clock::now();
 
-    pcl::console::print_highlight( "Finished calculating  %d FPFH FEATURES from %d indices  ... in %d seconds \n" ,
-    FPFH_signature33->size() ,  cloud_keypoints_indices->size() ,
+    pcl::console::print_highlight( "Finished calculating  %d FPFH FEATURES   ... in %d seconds \n" ,
+    FPFH_signature33->size()  ,
                std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+
+
+
+
+
+////////////////////////////////////
+/// ok now we calculate SPIN features ///
+////////////////////////////////////
+
+    std::cout << "Getting SPIN FEATURES ..." << std::endl;
+    t1 = std::chrono::high_resolution_clock::now();
+
+    if(FPFH_signature33== nullptr){
+        pcl::console::print_warn("FPFH descriptor vector is null, skipping this descriptor\n");
+        return(0);
+    }
+
+
+    typedef pcl::Histogram<153> SpinImage;
+
+    pcl::SpinImageEstimation<pcl::PointXYZI, pcl::Normal, SpinImage> si;
+    si.setInputCloud(cloud_max);
+    si.setInputNormals(cloud_normal);
+    // Radius of the support cylinder.
+    si.setRadiusSearch(support_size);
+    // Set the resolution of the spin image (the number of bins along one dimension).
+    // Note: you must change the output histogram size to reflect this.
+    si.setImageWidth(8);
+    //pcl::IndicesPtr ptr(cloud_keypoints_indices);
+
+    if(cloud_keypoints_indices == nullptr || cloud_keypoints_indices->size()==0){
+        pcl::console::print_error("No keypoints provided, will return ALL points (%d)\n", cloud_max->size() );
+    } else {
+        si.setIndices( cloud_keypoints_indices);
+    }
+
+    si.compute(*SPIN_signature);
+    t2 = std::chrono::high_resolution_clock::now();
+
+    pcl::console::print_highlight( "Finished calculating  %d SPIN FEATURES   ... in %d seconds \n" ,
+                                   FPFH_signature33->size()  ,
+                                   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+
 
 
     return(0);

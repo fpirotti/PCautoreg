@@ -66,7 +66,8 @@ int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
 int getMaxImageWithNormals(std::string filename,
                            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in,
                            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out,
-                           pcl::PointCloud<pcl::Normal>::Ptr cloud_norm);
+                           pcl::PointCloud<pcl::Normal>::Ptr cloud_norm,
+                           float max_window_res=1.0f );
 
 int las2keypoints(   std::string filename,
                      pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_las_gridMax,
