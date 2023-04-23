@@ -20,6 +20,6 @@ include_directories(includes/LASzip/src)
 
 add_subdirectory(includes/LASlib/src)
 
-add_executable(PCautoreg  main.cpp  readwrite.cpp grid_maximum.cpp   keypoints2features.cpp   alignRANSAC.h)
+add_executable(PCautoreg  main.cpp  readwrite.cpp grid_maximum.cpp   keypoints2features.cpp   alignRANSAC.h checkAccuracyC2C.cpp checkAccuracyC2C.h)
 
 target_link_libraries(PCautoreg ${PCL_LIBRARIES} LASlib)
