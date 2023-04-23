@@ -25,6 +25,7 @@
 #include <pcl/features/narf.h>
 #include <pcl/features/narf_descriptor.h>
 #include <pcl/features/spin_image.h>
+#include "common.h"
 
 int  keypoints2features(std::string filename,
                         float support_size,

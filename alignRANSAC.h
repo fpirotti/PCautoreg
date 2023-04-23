@@ -19,22 +19,7 @@
 #include <pcl/common/time.h>
 #include <pcl/point_cloud.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
-
-static void appendLineToFile(std::string filepath, std::string line)
-{
-    std::ofstream file;
-    //can't enable exception now because of gcc bug that raises ios_base::failure with useless message
-    //file.exceptions(file.exceptions() | std::ios::failbit);
-    file.open(filepath, std::ios::out | std::ios::app);
-    if (file.fail())
-        throw std::ios_base::failure(std::strerror(errno));
-
-    //make sure write fails with exception if something is wrong
-    file.exceptions(file.exceptions() | std::ios::failbit | std::ifstream::badbit);
-
-    file << line << std::endl;
-}
-
+#include "common.h"
 typedef pcl::PointXYZ PointNT;
 typedef pcl::PointXYZI PointNTi;
 typedef pcl::PointCloud<PointNT> PointCloudT;
@@ -103,6 +88,8 @@ public:
         {
             pcl::ScopeTime t("Alignment");
             align.align (*object_aligned);
+
+            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH SPIN IMAGES: %d milliseconds\n",   t.getTime() ));
         }
         if(align.hasConverged()){
             if(filenameBASE=="0"){
@@ -111,11 +98,16 @@ public:
                 filenameOUT = pcl::getFilenameWithoutExtension(filenameBASE).append( "__aligned_wSPIN.pcd" );
             }
             Eigen::Matrix4f *transformation = new Eigen::Matrix4f( align.getFinalTransformation () );
+
+
+
+
             printResult( *transformation );
             saveResult( *transformation );
 
             return transformation;
         }   else {
+            appendLineToFile("log.txt", string_format("ALIGN EFFORT FAILED!!\n") );
             pcl::console::print_error ("Alignment failed!\n");
         }
         return nullptr;
@@ -147,6 +139,7 @@ public:
         {
             pcl::ScopeTime t("Alignment");
             align.align (*object_aligned);
+            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH FPFH FEATURES: %d milliseconds\n",   t.getTime() ));
         }
         if(align.hasConverged()){
             if(filenameBASE=="0"){
@@ -161,6 +154,7 @@ public:
             return transformation;
         }   else {
             pcl::console::print_error ("Alignment failed!\n");
+            appendLineToFile("log.txt", string_format("ALIGN EFFORT FAILED!!\n") );
         }
         return nullptr;
         // Perform alignment
@@ -179,6 +173,7 @@ public:
     };
     void printResult(Eigen::Matrix4f transformation){
 
+        appendLineToFile("log.txt", string_format("ALIGN EFFORT SUCCESS!!\n") );
         printf ("\n");
         pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
         pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));

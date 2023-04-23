@@ -34,18 +34,15 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
 {
 
 
-    char mess[1000];
-    sprintf(mess,"Starting process with %.2f window size...\n",
-            support_size);
-    pcl::console::print_highlight (mess);
-    appendLineToFile("log.txt", mess);
+    pcl::console::print_highlight (string_format("============ %.2f window size...\n",
+                                                 support_size).c_str() );
+    appendLineToFile("log.txt", string_format("============ %.2f window size...\n",
+                                              support_size).c_str() );
 
-    pcl::PointCloud<pcl::Narf36>::Ptr narf_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
-    pcl::PointCloud<pcl::Narf36>::Ptr sift_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
+    //pcl::PointCloud<pcl::Narf36>::Ptr narf_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_descriptor_ptr_master (new pcl::PointCloud< pcl::FPFHSignature33 >);
     pcl::PointCloud< pcl::Histogram<153>  >::Ptr spin_descriptor_ptr_master (new pcl::PointCloud< pcl::Histogram<153> >);
 
-    std::map<std::string,  pcl::PointIndicesConstPtr  > *keypointsPtr = new std::map<std::string,  pcl::PointIndicesConstPtr  >;
     std::map<std::string,  pcl::IndicesPtr  > keypoints; // = *keypointsPtr;
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_max(new pcl::PointCloud<pcl::PointXYZI>);
@@ -55,9 +52,7 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
 
     for(int i=1; i< argc; i++) {
 
-        pcl::console::print_highlight ("-----------object sizes tmp %d - %d ...\n",
-                                       cloud_keypointsTmp->size(),
-                                       cloud_keypoints->size() );
+        pcl::console::print_warn("  %d of %d clouds\n", i,  argc-1);
 
         std::string filename = argv[i];
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in(new pcl::PointCloud<pcl::PointXYZI>);
@@ -66,10 +61,8 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
             return -1;
         }
 
-        pcl::console::print_warn("  %d of %d\n", i,  argc);
         if(i == 1){
 
-            pcl::console::print_warn("  reading %s image\n", filename.c_str());
             if( getMaxImageWithNormals(filename, cloud_in, cloud_max, cloud_normals, max_window_res) < 0 ){
                 pcl::console::print_error("Error reading max grid %s image\n", filename.c_str());
                 return(-1);
@@ -143,21 +136,23 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
                 //pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_max_slave_xyz (new pcl::PointCloud<pcl::PointXYZ>);
                 //pcl::copyPointCloud(*cloud_max_slave, *cloud_max_slave_xyz);
 
-                pcl::console::print_highlight ("RANSAC with %s ....\n%d|%d cloud keypoints (master|slave),  ...\n%d|%d features FPFH \n%d|%d features SPIN\n",
-                                               key.c_str(),
-                                               cloud_keypoints->size(),
-                                               cloud_keypoints_slave->size(),
-                                               fpfh_descriptor_ptr_master->size() ,
-                                               fpfh_descriptor_ptr_slave->size() ,
-                                               spin_descriptor_ptr_master->size() ,
-                                               spin_descriptor_ptr_slave->size()  );
+
+
+                appendLineToFile("log.txt", string_format("RANSAC with %s ....\n%d|%d cloud keypoints (master|slave),  ...\n%d|%d features FPFH \n%d|%d features SPIN\n",
+                                                          key.c_str(),
+                                                          cloud_keypoints->size(),
+                                                          cloud_keypoints_slave->size(),
+                                                          fpfh_descriptor_ptr_master->size() ,
+                                                          fpfh_descriptor_ptr_slave->size() ,
+                                                          spin_descriptor_ptr_master->size() ,
+                                                          spin_descriptor_ptr_slave->size()  ) );
 
                 alignRANSAC ransac;
                 ransac.setMasterCloud(cloud_keypoints);
                 ransac.setSlaveCloud(cloud_keypoints_slave);
                 ransac.setCloud2Register( cloud_max_slave);
                 char nm[90];
-                sprintf(nm, "%.2f_%s_",  support_size, key.c_str() );
+                sprintf(nm, "%02d_%s_",  (int)support_size, key.c_str() );
                 ransac.setOutName( pcl::getFilenameWithoutExtension(filename).append( nm ) );
                 ransac.align_FPFH( fpfh_descriptor_ptr_master, fpfh_descriptor_ptr_slave);
                 ransac.align_SPIN( spin_descriptor_ptr_master, spin_descriptor_ptr_slave);
@@ -187,10 +182,11 @@ main(int argc, char **argv) {
         return 0;
     }
 
-    run(argc, argv);
-    std::cout << "===========================================" << std::endl;
 
-    appendLineToFile("log.txt", "\n===========================\n");
+    appendLineToFile("log.txt", "STARTING \n", true);
+
+    run(argc, argv, 10);
     run(argc, argv, 15);
+
 
 }

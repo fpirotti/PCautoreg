@@ -66,12 +66,9 @@ int  keypoints2features(std::string filename,
     fpfh.compute(* FPFH_signature33);
     t2 = std::chrono::high_resolution_clock::now();
 
-    pcl::console::print_highlight( "Finished calculating  %d FPFH FEATURES   ... in %d seconds \n" ,
-    FPFH_signature33->size()  ,
-               std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
-
-
-
+    appendLineToFile("log.txt", string_format("Finished calculating  %d FPFH FEATURES   ... in %d seconds \n" ,
+                                              FPFH_signature33->size()  ,   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )
+                                              );
 
 
 ////////////////////////////////////
@@ -81,8 +78,8 @@ int  keypoints2features(std::string filename,
     std::cout << "Getting SPIN FEATURES ..." << std::endl;
     t1 = std::chrono::high_resolution_clock::now();
 
-    if(FPFH_signature33== nullptr){
-        pcl::console::print_warn("FPFH descriptor vector is null, skipping this descriptor\n");
+    if(SPIN_signature== nullptr){
+        pcl::console::print_warn("SPIN descriptor vector is null, skipping this descriptor\n");
         return(0);
     }
 
@@ -109,10 +106,13 @@ int  keypoints2features(std::string filename,
     t2 = std::chrono::high_resolution_clock::now();
 
     pcl::console::print_highlight( "Finished calculating  %d SPIN FEATURES   ... in %d seconds \n" ,
-                                   FPFH_signature33->size()  ,
+                                   SPIN_signature->size()  ,
                                    std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
 
 
+    appendLineToFile("log.txt", string_format("Finished calculating  %d SPIN FEATURES   ... in %d seconds \n" ,
+                                              SPIN_signature->size()  ,   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )
+    );
 
     return(0);
 }

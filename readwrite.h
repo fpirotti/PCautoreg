@@ -23,6 +23,7 @@
 #include <pcl/range_image/range_image.h>
 #include <pcl/filters/crop_box.h>
 #include <pcl/filters/extract_indices.h>
+#include "common.h"
 
 #include <pcl/features/normal_3d_omp.h>
 

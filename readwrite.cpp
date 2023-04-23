@@ -119,15 +119,17 @@ int getMaxImageWithNormals(std::string filename,
     //pcl::PointXYZI  minPt, maxPt;
     //pcl::getMinMax3D(*cloud_in, minPt, maxPt);
 
-    std::cout << "Getting RANGE image" << std::endl;
+    std::cout << "Getting MAX image" << std::endl;
     t1 = std::chrono::high_resolution_clock::now();
 
     if( std::filesystem::exists( pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ) ) )
     {
+        std::cout << "MAX image exists, reading it directly!" << std::endl;
         pcl::io::loadPCDFile( pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ) ,  *cloud_out );
 
     } else {
 
+        std::cout << "MAX image does NOT exist, creating!" << std::endl;
         pcl::GridMaximum<pcl::PointXYZI> maxFilter(max_window_res); //(*cloud_in);
         maxFilter.setInputCloud(cloud_in);
         maxFilter.filter(*cloud_out);
@@ -187,9 +189,9 @@ int las2keypoints( std::string filename,
       pcl::console::print_warn( "Getting SIFT KEYPOINTS...\n " );
       t1 = std::chrono::high_resolution_clock::now();
 
-        constexpr float min_scale = 2.0f;
+        float min_scale =  0.2f;
         constexpr int n_octaves = 6;
-        constexpr int n_scales_per_octave = 10;
+        constexpr int n_scales_per_octave = 12;
         constexpr float min_contrast = 5.0f;
         pcl::SIFTKeypoint <pcl::PointXYZI, pcl::PointWithScale> sift;
 
@@ -223,13 +225,16 @@ int las2keypoints( std::string filename,
 
         keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("SIFT", sift_KeypointsIndices ) );
 
-        pcl::io::savePCDFile (pcl::getFilenameWithoutExtension(filename).append( "__SIFT.pcd" ),
-                              result, false);
+
+        pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append(string_format("_%02d__SIFT.pcd", (int)support_size ) ),
+                         result, false);
 
         t2 = std::chrono::high_resolution_clock::now();
-        PCL_WARN  (" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
-                   result.size (),
-                   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
+
+        appendLineToFile("log.txt", string_format(" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
+                                                  keypointMap["SIFT"]->size(),
+                                                  std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )  );
+
         t1 = std::chrono::high_resolution_clock::now();
 
 
@@ -253,8 +258,11 @@ int las2keypoints( std::string filename,
        harris.compute(*pp);
        KEYPOINTS_cloud->clear();
        pcl::copyPointCloud(*pp, *KEYPOINTS_cloud);
-       pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append("__HARRIS.pcd"),
-                            *pp, false);
+
+
+       pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append(string_format("_%02d__HARRIS.pcd", (int)support_size  ) ),
+                         *pp, false);
+
       pcl::IndicesPtr  ind(new pcl::Indices) ;
       pcl::Indices  indConst =      harris.getKeypointsIndices()->indices;
       for(int i=0; i < indConst.size(); i++ ){
@@ -265,9 +273,10 @@ int las2keypoints( std::string filename,
       keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("HARRIS", ind ) );
       // keypointMap["HARRIS"] = harris.getKeypointsIndices();
        t2 = std::chrono::high_resolution_clock::now();
-       PCL_WARN  (" --- Finished calculating %d == %d harris KEYPOINTS  after %d seconds \n",
-                  pp->size(), keypointMap["HARRIS"]->size(),
-                  std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+
+    appendLineToFile("log.txt", string_format(" --- Finished calculating  %d harris KEYPOINTS  after %d seconds \n",
+             keypointMap["HARRIS"]->size(),
+            std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count())  );
 
     t1 = std::chrono::high_resolution_clock::now();
 
@@ -290,7 +299,7 @@ int las2keypoints( std::string filename,
       iss.setInputCloud(cloud_las_gridMax);
       iss.compute(*KEYPOINTS_cloud);
       //pcl::copyPointCloud(*pp, *ISS_keypointsCloud_ptr);
-      pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append("__ISS.pcd"),
+      pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append(string_format("_%02d__ISS.pcd", (int)support_size ) ),
                            *KEYPOINTS_cloud, false);
 
       pcl::IndicesPtr  ind_iss(new pcl::Indices) ;
@@ -302,9 +311,10 @@ int las2keypoints( std::string filename,
      // keypointMap["ISS"] = iss.getKeypointsIndices() ;
       keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("ISS", ind_iss) );
       t2 = std::chrono::high_resolution_clock::now();
-      PCL_WARN  (" --- Finished calculating %d ISS KEYPOINTS  after %d seconds \n",
-                 KEYPOINTS_cloud->size(),
-                 std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+
+      appendLineToFile("log.txt", string_format(" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
+                                              keypointMap["ISS"]->size(),
+                                              std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )  );
       t1 = std::chrono::high_resolution_clock::now();
 
     return(0);
