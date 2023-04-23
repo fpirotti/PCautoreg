@@ -19,6 +19,7 @@
 #include <pcl/common/time.h>
 #include <pcl/point_cloud.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
+#include "checkAccuracyC2C.h"
 #include "common.h"
 typedef pcl::PointXYZ PointNT;
 typedef pcl::PointXYZI PointNTi;
@@ -65,15 +66,7 @@ public:
     Eigen::Matrix4f *  align_SPIN( pcl::PointCloud< pcl::Histogram<153> >::Ptr scene_features, pcl::PointCloud< pcl::Histogram<153> >::Ptr object_features ){
 
         typedef pcl::Histogram<153> FeatureT;
-        char mess[1000];
 
-
-        sprintf(mess,"%s\nStarting alignment of SPIN features with %d and %d features respectively for source and target...\n",
-                filenameBASE.c_str(),
-                object_features->size(), scene_features->size() );
-
-        pcl::console::print_highlight (mess);
-        appendLineToFile("log.txt", mess);
         pcl::SampleConsensusPrerejective<PointNT,PointNT,FeatureT> align;
         align.setInputSource (object);
         align.setInputTarget (scene);
@@ -88,9 +81,9 @@ public:
         {
             pcl::ScopeTime t("Alignment");
             align.align (*object_aligned);
-
-            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH SPIN IMAGES: %d milliseconds\n",   t.getTime() ));
+            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH SPIN FEATURES: %.2f seconds\n",   t.getTime()/1000 ));
         }
+
         if(align.hasConverged()){
             if(filenameBASE=="0"){
                 filenameOUT="__aligned_wSPIN.pcd";
@@ -117,12 +110,7 @@ public:
     Eigen::Matrix4f *  align_FPFH( pcl::PointCloud<pcl::FPFHSignature33>::Ptr scene_features, pcl::PointCloud<pcl::FPFHSignature33>::Ptr object_features ){
 
         typedef pcl::FPFHSignature33 FeatureT;
-        char mess[1000];
-        sprintf(mess,"%s\nStarting alignment of FPFH features with %d and %d features respectively for source and target...\n",
-                filenameBASE.c_str(),
-                object_features->size(), scene_features->size() );
-        pcl::console::print_highlight (mess);
-        appendLineToFile("log.txt", mess);
+
 
         pcl::console::print_highlight ("Starting alignment...\n");
         pcl::SampleConsensusPrerejective<PointNT,PointNT,FeatureT> align;
@@ -139,7 +127,7 @@ public:
         {
             pcl::ScopeTime t("Alignment");
             align.align (*object_aligned);
-            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH FPFH FEATURES: %d milliseconds\n",   t.getTime() ));
+            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH FPFH FEATURES: %.2f seconds\n",   t.getTime()/1000 ));
         }
         if(align.hasConverged()){
             if(filenameBASE=="0"){
@@ -183,8 +171,32 @@ public:
         pcl::console::print_info ("\n");
         //pcl::console::print_info ("Inliers: %i/%i\n", align.getInliers ().size (), object->size ());
 
-    }
+    };
 
+
+    int checkAccuracy(std::vector<float> xcheck, std::vector<float> ycheck){
+        checkAccuracyC2C ca;
+        ca.setMasterCloud(this->scene);
+        ca.setSlaveCloud(this->object_aligned);
+        if(xcheck.size()!=ycheck.size()){
+            appendLineToFile("log.txt", string_format("ACCURACY FAILED, DIFFERENT NUMBER OF X AND Y COORDINATES IN CHECK POINTS (%d AND %d).\n",
+                                                      xcheck.size(),
+                                                      ycheck.size() ) );
+            return -1;
+        }
+        for(int i=0; i < xcheck.size(); i++){
+            PointNT pt;
+            pt.x = xcheck[i];
+            pt.y = ycheck[i];
+            ca.addGCP(pt);
+        }
+        ca.assess();
+
+        appendLineToFile("log.txt", string_format("\nACCURACY RESULTS:\n%s\n=============\n",
+                                                  ca.outputText.c_str() ) );
+
+        return 0;
+    }
 };
 
 

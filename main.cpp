@@ -50,6 +50,11 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_keypointsTmp(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_keypoints(new pcl::PointCloud<pcl::PointXYZ>);
 
+    std::vector<float> xcheck{120.2, 337.26, 85.566, 308.15};
+    std::vector<float> ycheck{67.3,   41.5, 169.85,  141.71};
+
+
+
     for(int i=1; i< argc; i++) {
 
         pcl::console::print_warn("  %d of %d clouds\n", i,  argc-1);
@@ -156,6 +161,7 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
                 ransac.setOutName( pcl::getFilenameWithoutExtension(filename).append( nm ) );
                 ransac.align_FPFH( fpfh_descriptor_ptr_master, fpfh_descriptor_ptr_slave);
                 ransac.align_SPIN( spin_descriptor_ptr_master, spin_descriptor_ptr_slave);
+                ransac.checkAccuracy(xcheck, ycheck);
             }
 
 

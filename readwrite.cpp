@@ -192,7 +192,7 @@ int las2keypoints( std::string filename,
         float min_scale =  0.2f;
         constexpr int n_octaves = 6;
         constexpr int n_scales_per_octave = 12;
-        constexpr float min_contrast = 5.0f;
+        constexpr float min_contrast = 0.1f;
         pcl::SIFTKeypoint <pcl::PointXYZI, pcl::PointWithScale> sift;
 
         pcl::PointCloud<pcl::PointWithScale> result;
@@ -312,7 +312,7 @@ int las2keypoints( std::string filename,
       keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("ISS", ind_iss) );
       t2 = std::chrono::high_resolution_clock::now();
 
-      appendLineToFile("log.txt", string_format(" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
+      appendLineToFile("log.txt", string_format(" --- Finished calculating %d ISS KEYPOINTS  after %d seconds \n",
                                               keypointMap["ISS"]->size(),
                                               std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )  );
       t1 = std::chrono::high_resolution_clock::now();

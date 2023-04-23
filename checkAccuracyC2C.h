@@ -51,7 +51,7 @@ public:
             registered_crop(new PointCloudT),
             reference_crop (new PointCloudT),
             gcp (new PointCloudT),
-            outputText("") {};
+            outputText("pt N.\tMean E\tSD E\tRMSE\tN.\n") {};
 
     void setMasterCloud(PointCloudT::Ptr pc){
         this->reference = pc;
@@ -125,7 +125,7 @@ public:
                 }
             }
             std::vector<float> stats = calculateStat(distances);
-            outputText.append( string_format("pt%02d\t%.3f\t%.3f\t%.3f\n", i+1, stats[0], stats[1], stats[2]) );
+            outputText.append( string_format("pt%02d\t%.3f\t%.3f\t%.3f\t%d\n", i+1, stats[0], stats[1], stats[2], registered_crop->points.size() ) );
 
         }
 
