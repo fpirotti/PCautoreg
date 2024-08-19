@@ -30,7 +30,7 @@
 #include "readwrite.h"
 
 
-int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
+int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud,
                   bool calcNormals, bool forceCalcNormals, bool savetopcd){
     bool alreadyExists = false;
 
@@ -108,61 +108,57 @@ int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZI>::Ptr cloud,
 
 
 int getMaxImageWithNormals(std::string filename,
-                           pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in,
-                            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_out,
-                            pcl::PointCloud<pcl::Normal>::Ptr cloud_norm,
+                           pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_in,
+                            pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_out,
+                           // pcl::PointCloud<pcl::Normal>::Ptr cloud_norm,
                             float max_window_res  ){
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto t2 = std::chrono::high_resolution_clock::now();
 
-    //pcl::PointXYZI  minPt, maxPt;
+    //pcl::PointXYZINormal  minPt, maxPt;
     //pcl::getMinMax3D(*cloud_in, minPt, maxPt);
 
     std::cout << "Getting MAX image" << std::endl;
     t1 = std::chrono::high_resolution_clock::now();
-
-    if( std::filesystem::exists( pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ) ) )
+    auto outName = pcl::getFilenameWithoutExtension(filename).append( string_format("_maxImage_%06.2f.pcd", max_window_res ) ) ;
+    
+    if( std::filesystem::exists(outName) )
     {
         std::cout << "MAX image exists, reading it directly!" << std::endl;
-        pcl::io::loadPCDFile( pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ) ,  *cloud_out );
+        pcl::io::loadPCDFile( outName ,  *cloud_out );
 
     } else {
 
         std::cout << "MAX image does NOT exist, creating!" << std::endl;
-        pcl::GridMaximum<pcl::PointXYZI> maxFilter(max_window_res); //(*cloud_in);
+        pcl::GridMaximum<pcl::PointXYZINormal> maxFilter(max_window_res); //(*cloud_in);
         maxFilter.setInputCloud(cloud_in);
         maxFilter.filter(*cloud_out);
-
-        pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ),
-                             *cloud_out, false);
-
     }
 
     t2 = std::chrono::high_resolution_clock::now();
-    PCL_WARN  ("Finished calculating max image using %.2f resolution: saved to  %s after %d seconds \n",
+    
+    PCL_ALWAYS  ("Finished calculating max image using %.2f resolution: saved to  %s after %d seconds \n",
                max_window_res,
                pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ).c_str(),
                std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
-
-    /// --------------------------------------------------------
-    /// -----Extract NORMALS of MAX image  ------------ -------
-    /// --------------------------------------------------------
+    
     std::cout << " --- Getting NORMALS, this step is required ---" << std::endl;
-    t1 = std::chrono::high_resolution_clock::now();
-
-    pcl::NormalEstimationOMP<pcl::PointXYZI,pcl::Normal> nest;
-    nest.setRadiusSearch ( 4);
+    
+    pcl::NormalEstimationOMP<pcl::PointXYZINormal,pcl::PointXYZINormal> nest;
+    nest.setRadiusSearch ( max_window_res*5 );
     nest.setInputCloud (cloud_out);
-    nest.compute (*cloud_norm);
+    nest.compute (*cloud_out);
     t2 = std::chrono::high_resolution_clock::now();
-    pcl::io::savePCDFile(pcl::getFilenameWithoutExtension(filename).append( std::string("_MAXImage_wNormals.pcd") ),
-                         *cloud_norm, false);
 
-    PCL_WARN  ("Finished calculating NORMALS IN image: saved to  %s after %d seconds \n",
-               pcl::getFilenameWithoutExtension(filename).append( std::string("_MAXImage_wNormals.pcd") ).c_str(),
+    PCL_ALWAYS  ("Finished calculating NORMALS  after %d seconds \n", 
                std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
-
+     
+    for (size_t i = 0; i < cloud_out->points.size(); i++) { 
+      cloud_out->points[i].intensity = cloud_out->points[i].curvature;
+    }
+    
+    pcl::io::savePCDFile(outName, *cloud_out, false);
     return(0);
 
 }
@@ -170,8 +166,8 @@ int getMaxImageWithNormals(std::string filename,
 
 
 int las2keypoints( std::string filename,
-                     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_las_gridMax,
-                     pcl::PointCloud<pcl::Normal>::Ptr cloud_Normals_ptr,
+                     pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_las_gridMax,
+                     //pcl::PointCloud<pcl::Normal>::Ptr cloud_Normals_ptr,
                      std::map<std::string,  pcl::IndicesPtr  > &keypointMap,
                       float support_size ) {
 
@@ -189,14 +185,15 @@ int las2keypoints( std::string filename,
       pcl::console::print_warn( "Getting SIFT KEYPOINTS...\n " );
       t1 = std::chrono::high_resolution_clock::now();
 
-        float min_scale =  0.2f;
-        constexpr int n_octaves = 6;
-        constexpr int n_scales_per_octave = 12;
-        constexpr float min_contrast = 0.1f;
-        pcl::SIFTKeypoint <pcl::PointXYZI, pcl::PointWithScale> sift;
+      const float min_scale = 0.1f;
+      const int n_octaves = 3;
+      const int n_scales_per_octave = 4;
+      const float min_contrast = 0.001f;
+      
+        pcl::SIFTKeypoint <pcl::PointXYZINormal, pcl::PointWithScale> sift;
 
         pcl::PointCloud<pcl::PointWithScale> result;
-        pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI> ());
+        pcl::search::KdTree<pcl::PointXYZINormal>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZINormal> ());
         sift.setSearchMethod(tree);
 
         sift.setScales(min_scale, n_octaves, n_scales_per_octave);
@@ -205,6 +202,9 @@ int las2keypoints( std::string filename,
         sift.compute(result);
 
         int K = result.size();
+        
+        pcl::console::print_info( "Found %d SIFT KEYPOINTS...\n ", K );
+        
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
 
       std::vector<int> pointIdxNKNSearch(1);
@@ -219,6 +219,7 @@ int las2keypoints( std::string filename,
           pt.x = result.points[i].x;
           pt.y = result.points[i].y;
           pt.z = result.points[i].z;
+          appendLineToFile("sift.txt", string_format("%.f;%.f;%.f",pt.x,pt.y,pt.z ) );
           kdtree.nearestKSearch( pt , 1, pointIdxNKNSearch, pointNKNSquaredDistance);
           sift_KeypointsIndices->push_back( pointIdxNKNSearch[0] );
       }
@@ -245,15 +246,15 @@ int las2keypoints( std::string filename,
        pcl::console::print_warn("Getting harris KEYPOINTS...\n ");
        t1 = std::chrono::high_resolution_clock::now();
 
-       pcl::PointCloud<pcl::PointXYZI>::Ptr pp(new pcl::PointCloud<pcl::PointXYZI>);
-       pcl::HarrisKeypoint3D<pcl::PointXYZI, pcl::PointXYZI, pcl::Normal> harris;
-       pcl::search::KdTree<pcl::PointXYZI>::Ptr harris_tree(new pcl::search::KdTree<pcl::PointXYZI>());
+       pcl::PointCloud<pcl::PointXYZINormal>::Ptr pp(new pcl::PointCloud<pcl::PointXYZINormal>);
+       pcl::HarrisKeypoint3D<pcl::PointXYZINormal, pcl::PointXYZINormal, pcl::Normal> harris;
+       pcl::search::KdTree<pcl::PointXYZINormal>::Ptr harris_tree(new pcl::search::KdTree<pcl::PointXYZINormal>());
        harris.setSearchMethod(harris_tree);
        harris.setNonMaxSupression(true);
        harris.setThreshold(1e-6);
 
        harris.setRadius(5);
-       harris.setNormals(cloud_Normals_ptr);
+       //harris.setNormals(*cloud_las_gridMax);
        harris.setInputCloud(cloud_las_gridMax);
        harris.compute(*pp);
        KEYPOINTS_cloud->clear();
@@ -290,12 +291,12 @@ int las2keypoints( std::string filename,
       t1 = std::chrono::high_resolution_clock::now();
 
       // pcl::PointCloud<pcl::PointXYZ>::Ptr pp_iss (new pcl::PointCloud<pcl::PointXYZ>);
-      pcl::ISSKeypoint3D<pcl::PointXYZI, pcl::PointXYZ> iss;
-      pcl::search::KdTree<pcl::PointXYZI>::Ptr iss_tree(new pcl::search::KdTree<pcl::PointXYZI>());
+      pcl::ISSKeypoint3D<pcl::PointXYZINormal, pcl::PointXYZ> iss;
+      pcl::search::KdTree<pcl::PointXYZINormal>::Ptr iss_tree(new pcl::search::KdTree<pcl::PointXYZINormal>());
       iss.setSearchMethod(iss_tree);
       iss.setSalientRadius(support_size / 9);
       iss.setNonMaxRadius(1);
-      iss.setNormals(cloud_Normals_ptr);
+      //iss.setNormals(cloud_Normals_ptr);
       iss.setInputCloud(cloud_las_gridMax);
       iss.compute(*KEYPOINTS_cloud);
       //pcl::copyPointCloud(*pp, *ISS_keypointsCloud_ptr);

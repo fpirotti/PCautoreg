@@ -1,8 +1,18 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.21)
 project(PCautoreg)
 
 set(CMAKE_CXX_STANDARD 17)
 #set(APP_DOMAIN /usr/local/include/pcl1.13)
+
+if (MSVC)
+    # warning level 4
+    add_compile_options(/W4)
+else()
+    # additional warnings
+    add_compile_options(-w -fmax-errors=1)
+endif()
+
+
 
 #Include the directories and now your cpp files will recognize your headers
 #include_directories(${APP_DOMAIN})

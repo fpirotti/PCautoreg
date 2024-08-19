@@ -18,7 +18,8 @@
 
 #include <pcl/console/parse.h>
 
-#include <pcl/features/normal_3d_omp.h>
+#include <pcl/common/io.h>
+//#include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/features/range_image_border_extractor.h>
 #include <pcl/features/normal_3d.h>
@@ -30,7 +31,7 @@
 int  keypoints2features(std::string filename,
                         float support_size,
                         pcl::IndicesPtr  cloud_keypoints_indices= nullptr,
-                        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_max= nullptr,
+                        pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_max= nullptr,
                         pcl::PointCloud<pcl::Normal>::Ptr cloud_normal= nullptr,
                         pcl::PointCloud<pcl::FPFHSignature33>::Ptr  FPFH_signature33= nullptr,
                         pcl::PointCloud<pcl::Histogram<153> >::Ptr  SPIN_signature = nullptr

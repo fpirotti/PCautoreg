@@ -30,7 +30,7 @@
 
 
 typedef pcl::PointXYZ PointNT;
-typedef pcl::PointXYZI PointNTi;
+typedef pcl::PointXYZINormal PointNTi;
 typedef pcl::PointCloud<PointNT> PointCloudT;
 typedef pcl::PointCloud<PointNTi> PointCloudTi;
 

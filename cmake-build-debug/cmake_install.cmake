@@ -1,4 +1,4 @@
-# Install script for directory: /archivio/software/PCautoreg
+# Install script for directory: /archivio/home/pirottivm/CLionProjects/PCAutoreg
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -12,7 +12,7 @@ if(NOT DEFINED CMAKE_INSTALL_CONFIG_NAME)
     string(REGEX REPLACE "^[^A-Za-z0-9_]+" ""
            CMAKE_INSTALL_CONFIG_NAME "${BUILD_TYPE}")
   else()
-    set(CMAKE_INSTALL_CONFIG_NAME "Debug")
+    set(CMAKE_INSTALL_CONFIG_NAME "")
   endif()
   message(STATUS "Install configuration: \"${CMAKE_INSTALL_CONFIG_NAME}\"")
 endif()
@@ -44,7 +44,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("/archivio/software/PCautoreg/cmake-build-debug/includes/LASlib/src/cmake_install.cmake")
+  include("/archivio/home/pirottivm/CLionProjects/PCAutoreg/cmake-build-debug/includes/LASlib/src/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -55,5 +55,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/archivio/software/PCautoreg/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/archivio/home/pirottivm/CLionProjects/PCAutoreg/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

@@ -30,10 +30,10 @@ void printUsage(const char *progName) {
               << "\n\n";
 }
 
-int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .2f)
+int run(int argc, char **argv, float support_size= 5.0f)
 {
 
-
+    float max_window_res= support_size/10;
     pcl::console::print_highlight (string_format("============ %.2f window size...\n",
                                                  support_size).c_str() );
     appendLineToFile("log.txt", string_format("============ %.2f window size...\n",
@@ -45,9 +45,9 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
 
     std::map<std::string,  pcl::IndicesPtr  > keypoints; // = *keypointsPtr;
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_max(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_max(new pcl::PointCloud<pcl::PointXYZINormal>);
     pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_keypointsTmp(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_keypointsTmp(new pcl::PointCloud<pcl::PointXYZINormal>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_keypoints(new pcl::PointCloud<pcl::PointXYZ>);
 
     std::vector<float> xcheck{120.2, 337.26, 85.566, 308.15};
@@ -60,7 +60,7 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
         pcl::console::print_warn("  %d of %d clouds\n", i,  argc-1);
 
         std::string filename = argv[i];
-        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_in(new pcl::PointCloud<pcl::PointXYZI>);
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_in(new pcl::PointCloud<pcl::PointXYZINormal>);
         if(readPC(filename, cloud_in) < 0 ){
             pcl::console::print_error("Error reading %s image\n", filename.c_str());
             return -1;
@@ -68,13 +68,13 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
 
         if(i == 1){
 
-            if( getMaxImageWithNormals(filename, cloud_in, cloud_max, cloud_normals, max_window_res) < 0 ){
+            if( getMaxImageWithNormals(filename, cloud_in, cloud_max,  max_window_res) < 0 ){
                 pcl::console::print_error("Error reading max grid %s image\n", filename.c_str());
                 return(-1);
             }
 
             pcl::console::print_warn("Calculating Keypoints at REFERENCE object.\n");
-            las2keypoints(filename,  cloud_max, cloud_normals, keypoints, support_size= support_size);
+            las2keypoints(filename,  cloud_max,   keypoints, support_size= support_size);
 
 
             for (const auto& [key, value] : keypoints)
@@ -83,13 +83,13 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
 
         } else {
 
-            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_max_slave(new pcl::PointCloud<pcl::PointXYZI>);
+            pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_max_slave(new pcl::PointCloud<pcl::PointXYZINormal>);
             pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_slave(new pcl::PointCloud<pcl::Normal>);
-            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_keypointsTmp_slave(new pcl::PointCloud<pcl::PointXYZI>);
+            pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_keypointsTmp_slave(new pcl::PointCloud<pcl::PointXYZINormal>);
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_keypoints_slave(new pcl::PointCloud<pcl::PointXYZ>);
 
             pcl::console::print_warn("  reading %s image\n", filename.c_str() );
-            if( getMaxImageWithNormals(filename, cloud_in, cloud_max_slave, cloud_normals_slave, max_window_res) < 0 ) {
+            if( getMaxImageWithNormals(filename, cloud_in, cloud_max_slave,  max_window_res) < 0 ) {
                 pcl::console::print_error("Error reading max grid %s image\n", filename.c_str());
                 return(-1);
             }
@@ -100,7 +100,7 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
             pcl::console::print_warn("Calculating Keypoints at REGISTERED object.\n");
             std::map<std::string,  pcl::IndicesPtr  > keypoints_slave; // = *keypointsPtr;
 
-            las2keypoints(filename,  cloud_max_slave, cloud_normals_slave,
+            las2keypoints(filename,  cloud_max_slave, 
                           keypoints_slave,  support_size= support_size);
 
 
@@ -108,16 +108,23 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
 
                 std::cout << '[' << key << "] = " << value->size() << "; " << std::endl;
 
+              
                 /////////////// REFERENCE
+                ////// copy normals alas they have to be in a specific PCL type
+                pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>); 
+                pcl::copyPointCloud(*cloud_max, *cloud_normals); 
+                
                 std::cout << "REFERENCE " << std::endl;
-                keypoints2features(filename, support_size,
+                std::string kk = std::string(key);
+                kk.append("_REF");
+                keypoints2features(kk, support_size,
                                    keypoints[ key.c_str() ],
                                    cloud_max, cloud_normals,
                                    fpfh_descriptor_ptr_master,
                                    spin_descriptor_ptr_master );
 
-
-                pcl::ExtractIndices<pcl::PointXYZI> filter;
+              
+                pcl::ExtractIndices<pcl::PointXYZINormal> filter;
                 filter.setInputCloud (cloud_max);
                 filter.setIndices ( keypoints[ key.c_str() ] );
                 // Extract the points in cloud_in referenced by indices_in as a separate point cloud:
@@ -125,9 +132,16 @@ int run(int argc, char **argv, float support_size= 5.0f, float max_window_res= .
                 pcl::copyPointCloud(*cloud_keypointsTmp, *cloud_keypoints);
 
                 /////////////// REGISTERED
-
+                
+                ////// copy normals alas they have to be in a specific PCL type
+                pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_slave (new pcl::PointCloud<pcl::Normal>); 
+                pcl::copyPointCloud(*cloud_max_slave, *cloud_normals_slave); 
+                
+                
                 std::cout << "REGISTERED " << std::endl;
-                keypoints2features(filename, support_size,
+                std::string kk2 = std::string(key);
+                kk2.append("_SLAVE");
+                keypoints2features(kk2, support_size,
                                    value,
                                    cloud_max_slave, cloud_normals_slave,
                                    fpfh_descriptor_ptr_slave,
@@ -192,7 +206,7 @@ main(int argc, char **argv) {
     appendLineToFile("log.txt", "STARTING \n", true);
 
     run(argc, argv, 10);
-    run(argc, argv, 15);
+    //run(argc, argv, 15);
 
 
 }

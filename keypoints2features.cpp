@@ -12,7 +12,7 @@ int  keypoints2features2(std::string &filename,
 int  keypoints2features(std::string filename,
                         float support_size,
                         pcl::IndicesPtr  cloud_keypoints_indices ,
-                        pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_max,
+                        pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_max,
                         pcl::PointCloud<pcl::Normal>::Ptr cloud_normal,
                         pcl::PointCloud<pcl::FPFHSignature33>::Ptr  FPFH_signature33,
                         pcl::PointCloud<pcl::Histogram<153> >::Ptr  SPIN_signature
@@ -20,7 +20,9 @@ int  keypoints2features(std::string filename,
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto t2 = std::chrono::high_resolution_clock::now();
+    
 
+    
     if(cloud_max->size()==0){
         pcl::console::print_error("Max grid not set, did you provide the max grid cloud?\n");
         return(-1);
@@ -49,8 +51,8 @@ int  keypoints2features(std::string filename,
         return(0);
     }
 
-    pcl::search::KdTree<pcl::PointXYZI>::Ptr ktree(new pcl::search::KdTree<pcl::PointXYZI> ());
-    pcl::FPFHEstimation<pcl::PointXYZI, pcl::Normal, pcl::FPFHSignature33> fpfh;
+    pcl::search::KdTree<pcl::PointXYZINormal>::Ptr ktree(new pcl::search::KdTree<pcl::PointXYZINormal> ());
+    pcl::FPFHEstimation<pcl::PointXYZINormal, pcl::Normal, pcl::FPFHSignature33> fpfh;
     fpfh.setInputCloud(cloud_max );
     fpfh.setInputNormals(cloud_normal);
     fpfh.setSearchMethod(ktree);
@@ -66,9 +68,12 @@ int  keypoints2features(std::string filename,
     fpfh.compute(* FPFH_signature33);
     t2 = std::chrono::high_resolution_clock::now();
 
-    appendLineToFile("log.txt", string_format("Finished calculating  %d FPFH FEATURES   ... in %d seconds \n" ,
-                                              FPFH_signature33->size()  ,   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )
-                                              );
+    appendLineToFile("log.txt", string_format("%s:Finished calculating  %d FPFH FEATURES   ... in %d seconds - radius size %.5f\n" ,
+                                                filename.c_str(),
+                                              FPFH_signature33->size()  ,   
+                                              std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count(),
+                                              support_size)
+                       );
 
 
 ////////////////////////////////////
@@ -79,14 +84,14 @@ int  keypoints2features(std::string filename,
     t1 = std::chrono::high_resolution_clock::now();
 
     if(SPIN_signature== nullptr){
-        pcl::console::print_warn("SPIN descriptor vector is null, skipping this descriptor\n");
+        PCL_WARN("SPIN descriptor vector is null, skipping this descriptor\n");
         return(0);
     }
 
 
     typedef pcl::Histogram<153> SpinImage;
 
-    pcl::SpinImageEstimation<pcl::PointXYZI, pcl::Normal, SpinImage> si;
+    pcl::SpinImageEstimation<pcl::PointXYZINormal, pcl::Normal, SpinImage> si;
     si.setInputCloud(cloud_max);
     si.setInputNormals(cloud_normal);
     // Radius of the support cylinder.
@@ -105,13 +110,17 @@ int  keypoints2features(std::string filename,
     si.compute(*SPIN_signature);
     t2 = std::chrono::high_resolution_clock::now();
 
-    pcl::console::print_highlight( "Finished calculating  %d SPIN FEATURES   ... in %d seconds \n" ,
+    pcl::console::print_highlight( "%s: Finished calculating  %d SPIN FEATURES   ... in %d seconds  - radius size %.5f\n" ,
+                                   filename.c_str(),
                                    SPIN_signature->size()  ,
-                                   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count());
+                                   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count(),
+                                   support_size );
 
 
-    appendLineToFile("log.txt", string_format("Finished calculating  %d SPIN FEATURES   ... in %d seconds \n" ,
-                                              SPIN_signature->size()  ,   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )
+    appendLineToFile("log.txt", string_format("%s: Finished calculating  %d SPIN FEATURES   ... in %d seconds - radius size %.5f \n" ,
+                                       filename.c_str(),
+                                              SPIN_signature->size()  ,   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count(),
+                                              support_size )
     );
 
     return(0);

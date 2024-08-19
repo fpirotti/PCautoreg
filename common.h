@@ -39,7 +39,9 @@ std::string string_format( const std::string& format, Args ... args )
     return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
 }
 
-static void appendLineToFile(std::string filepath, std::string line, bool truncate=false)
+static void appendLineToFile(std::string filepath, 
+                             std::string line,
+                             bool truncate=false)
 {
     std::ofstream file;
     //can't enable exception now because of gcc bug that raises ios_base::failure with useless message
