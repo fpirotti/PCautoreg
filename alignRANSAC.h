@@ -91,10 +91,7 @@ public:
                 filenameOUT = pcl::getFilenameWithoutExtension(filenameBASE).append( "__aligned_wSPIN.pcd" );
             }
             Eigen::Matrix4f *transformation = new Eigen::Matrix4f( align.getFinalTransformation () );
-
-
-
-
+ 
             printResult( *transformation );
             saveResult( *transformation );
 
