@@ -23,7 +23,7 @@ float angular_resolution = 0.5f;
 float support_size = 5.f;
 float range_image_grid_res = .5f; // x10 less of support size this can be changed by -s
 
- 
+  
 string stringpath = dateTimeToString(now(), "%Y-%m-%d-%X");
 
 std::string logfile = dateTimeToString(now(), "%Y-%m-%d-%X-LOG.txt");
