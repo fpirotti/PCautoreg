@@ -9,35 +9,45 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/time.h>
+#include "common.h"
 
+// #define  PCL_ALWAYS_(...){  \                                   \
+// appendLineToFile(logfile, ... );                              \
+// }                                                              
 // --------------------
 // -----Parameters-----
 // --------------------
-float angular_resolution = 0.5f;
-float support_size = 0.2f;
 
 bool setUnseenToMaxRange = false;
+float angular_resolution = 0.5f;
+float support_size = 5.f;
+float range_image_grid_res = .5f; // x10 less of support size this can be changed by -s
+
+ 
+string stringpath = dateTimeToString(now(), "%Y-%m-%d-%X");
+
+std::string logfile = dateTimeToString(now(), "%Y-%m-%d-%X-LOG.txt");
+int status = mkdir(stringpath.c_str(),0777);
 
 void printUsage(const char *progName) {
-    std::cout << "\n\nUsage: " << progName << " [options] <scene.ply|las|laz>\n\n"
+    std::cout << "\n\nUsage: " << progName << " [options] <reference.ply|las|laz> <registered1.ply|las|laz> <registeredN.ply|las|laz>\n\n"
               << "Options:\n"
               << "-------------------------------------------\n"
-              << "-r <float>   angular resolution in degrees (default " << angular_resolution << ")\n"
-              << "-m           Treat all unseen points as maximum range readings\n"
-              << "-s <float>   support size for the interest points (diameter of the used sphere - "
+            //  << "-r <float>   angular resolution in degrees (default " << angular_resolution << ")\n" 
+              << "-g <float>   grid sampling distance for max points (default " << range_image_grid_res << ")\n" 
+              << "-s <float>   support size for the interest points (diameter of the used sphere - NB the range image will be 10x less this diameter. Suggested to set it in a way to make sure to catch at least 100 points"
               << "default " << support_size << ")\n"
               << "-h           this help\n"
               << "\n\n";
 }
 
-int run(int argc, char **argv, float support_size= 5.0f)
+int run(int argc, char **argv ) //ss is the x of higher resolution of range image to radius - should always be >> 1
 {
 
-    float max_window_res= support_size/10;
-    pcl::console::print_highlight (string_format("============ %.2f window size...\n",
-                                                 support_size).c_str() );
-    appendLineToFile("log.txt", string_format("============ %.2f window size...\n",
-                                              support_size).c_str() );
+    
+    //float max_window_res= support_size/10;
+    appendLineToFile(logfile, string_format("============ %.2f window size... and support size %.3f\n",
+                                       range_image_grid_res, support_size).c_str() );
 
     //pcl::PointCloud<pcl::Narf36>::Ptr narf_descriptor_ptr_master (new pcl::PointCloud<pcl::Narf36>);
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_descriptor_ptr_master (new pcl::PointCloud< pcl::FPFHSignature33 >);
@@ -59,7 +69,9 @@ int run(int argc, char **argv, float support_size= 5.0f)
 
         pcl::console::print_warn("  %d of %d clouds\n", i,  argc-1);
 
-        std::string filename = argv[i];
+        std::string filename(argv[i]); 
+        
+       
         pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_in(new pcl::PointCloud<pcl::PointXYZINormal>);
         if(readPC(filename, cloud_in) < 0 ){
             pcl::console::print_error("Error reading %s image\n", filename.c_str());
@@ -68,11 +80,13 @@ int run(int argc, char **argv, float support_size= 5.0f)
 
         if(i == 1){
 
-            if( getMaxImageWithNormals(filename, cloud_in, cloud_max,  max_window_res) < 0 ){
+            if( getMaxImageWithNormals(filename, cloud_in, cloud_max) < 0 ){
                 pcl::console::print_error("Error reading max grid %s image\n", filename.c_str());
                 return(-1);
             }
-
+            
+            appendLineToFile(logfile, string_format("Calculating Keypoints at REFERENCE object: %s.\n",filename.c_str() )  );
+            
             pcl::console::print_warn("Calculating Keypoints at REFERENCE object.\n");
             las2keypoints(filename,  cloud_max,   keypoints, support_size= support_size);
 
@@ -89,7 +103,7 @@ int run(int argc, char **argv, float support_size= 5.0f)
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_keypoints_slave(new pcl::PointCloud<pcl::PointXYZ>);
 
             pcl::console::print_warn("  reading %s image\n", filename.c_str() );
-            if( getMaxImageWithNormals(filename, cloud_in, cloud_max_slave,  max_window_res) < 0 ) {
+            if( getMaxImageWithNormals(filename, cloud_in, cloud_max_slave ) < 0 ) {
                 pcl::console::print_error("Error reading max grid %s image\n", filename.c_str());
                 return(-1);
             }
@@ -97,6 +111,9 @@ int run(int argc, char **argv, float support_size= 5.0f)
             pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_descriptor_ptr_slave (new pcl::PointCloud<pcl::FPFHSignature33>);
             pcl::PointCloud< pcl::Histogram<153>  >::Ptr spin_descriptor_ptr_slave (new pcl::PointCloud<pcl::Histogram<153> >);
 
+            
+            appendLineToFile(logfile, string_format("Calculating Keypoints at REGISTERED object. %s.\n",filename.c_str() )  );
+            
             pcl::console::print_warn("Calculating Keypoints at REGISTERED object.\n");
             std::map<std::string,  pcl::IndicesPtr  > keypoints_slave; // = *keypointsPtr;
 
@@ -116,7 +133,7 @@ int run(int argc, char **argv, float support_size= 5.0f)
                 
                 std::cout << "REFERENCE " << std::endl;
                 std::string kk = std::string(key);
-                kk.append("_REF");
+                kk.append("_REFERENCE");
                 keypoints2features(kk, support_size,
                                    keypoints[ key.c_str() ],
                                    cloud_max, cloud_normals,
@@ -140,7 +157,7 @@ int run(int argc, char **argv, float support_size= 5.0f)
                 
                 std::cout << "REGISTERED " << std::endl;
                 std::string kk2 = std::string(key);
-                kk2.append("_SLAVE");
+                kk2.append("_REGISTERED");
                 keypoints2features(kk2, support_size,
                                    value,
                                    cloud_max_slave, cloud_normals_slave,
@@ -157,7 +174,7 @@ int run(int argc, char **argv, float support_size= 5.0f)
 
 
 
-                appendLineToFile("log.txt", string_format("RANSAC with %s ....\n%d|%d cloud keypoints (master|slave),  ...\n%d|%d features FPFH \n%d|%d features SPIN\n",
+                appendLineToFile(logfile, string_format("RANSAC with %s ....\n%d|%d cloud keypoints (master|slave),  ...\n%d|%d features FPFH \n%d|%d features SPIN\n",
                                                           key.c_str(),
                                                           cloud_keypoints->size(),
                                                           cloud_keypoints_slave->size(),
@@ -170,12 +187,12 @@ int run(int argc, char **argv, float support_size= 5.0f)
                 ransac.setMasterCloud(cloud_keypoints);
                 ransac.setSlaveCloud(cloud_keypoints_slave);
                 ransac.setCloud2Register( cloud_max_slave);
-                char nm[90];
-                sprintf(nm, "%02d_%s_",  (int)support_size, key.c_str() );
-                ransac.setOutName( pcl::getFilenameWithoutExtension(filename).append( nm ) );
-                ransac.align_FPFH( fpfh_descriptor_ptr_master, fpfh_descriptor_ptr_slave);
+                
+                ransac.setOutName(  pcl::getFilenameWithoutExtension(filename).append("_").append(key).append("_ss").append( std::to_string((int)support_size) ) );
+                
+               // ransac.align_FPFH( fpfh_descriptor_ptr_master, fpfh_descriptor_ptr_slave);
                 ransac.align_SPIN( spin_descriptor_ptr_master, spin_descriptor_ptr_slave);
-                ransac.checkAccuracy(xcheck, ycheck);
+               // ransac.checkAccuracy(xcheck, ycheck);
             }
 
 
@@ -192,7 +209,7 @@ int run(int argc, char **argv, float support_size= 5.0f)
 int
 main(int argc, char **argv) {
 
-
+  
     if (argc < 2) {
         printUsage(argv[0]);
         return 0;
@@ -201,11 +218,31 @@ main(int argc, char **argv) {
         printUsage(argv[0]);
         return 0;
     }
+    int j=0;
+    if (pcl::console::parse (argc, argv, "-s", support_size) >= 0){ 
+      std::cout << "Setting support size to "<<support_size<<".\n";
+      j++; 
+      j++; // jump two of input arguments
+    } else {
+      std::cout << "Support size to default "<< support_size <<".\n";
+    } 
+    
+    if (pcl::console::parse (argc, argv, "-g", range_image_grid_res) >= 0){ 
+      std::cout << "Setting range_image_grid_res to "<<range_image_grid_res<<".\n";
+      j++; 
+      j++; // jump two of input arguments
+    } else {
+      std::cout << "range_image_grid_res to default "<< range_image_grid_res <<".\n";
+    } 
 
+    argv+=j;
+    argc-=j;
+    appendLineToFile(logfile, string_format("STARTING \nrange_image_grid_res= %.3f\n support_size= %.3f\n expected points= %.3f\n", 
+                                      support_size, 
+                                      range_image_grid_res, 
+                                      pow((support_size/range_image_grid_res),2) ), true);
 
-    appendLineToFile("log.txt", "STARTING \n", true);
-
-    run(argc, argv, 10);
+    run(argc, argv);
     //run(argc, argv, 15);
 
 

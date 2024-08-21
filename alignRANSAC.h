@@ -19,8 +19,9 @@
 #include <pcl/common/time.h>
 #include <pcl/point_cloud.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
-#include "checkAccuracyC2C.h"
+//#include "checkAccuracyC2C.h"
 #include "common.h"
+#include <pcl/io/auto_io.h>
 typedef pcl::PointXYZ PointNT;
 typedef pcl::PointXYZINormal PointNTi;
 typedef pcl::PointCloud<PointNT> PointCloudT;
@@ -34,8 +35,7 @@ protected:
     PointCloudT::Ptr object_aligned ;
     PointCloudTi::Ptr cloud2register ;
     PointCloudT::Ptr scene ;
-    std::string  filenameBASE;
-    std::string  filenameOUT;
+    std::string  filenameBASE; 
 
 public:
     enum featureType { FPFH = 1, SPIN=2 };
@@ -55,22 +55,25 @@ public:
     void setSlaveCloud(PointCloudT::Ptr pc){
         this->object = pc;
     };
-    void setOutName(std::string filename){
-        this->filenameBASE = filename;
+    void setOutName(std::string filename){ 
+        this->filenameBASE = filename; 
     };
     template <typename PointT> inline void
     setCloud2Register(std::shared_ptr<pcl::PointCloud<PointT>> cloud_in){
         this->cloud2register = cloud_in;
     };
 
-    Eigen::Matrix4f *  align_SPIN( pcl::PointCloud< pcl::Histogram<153> >::Ptr scene_features, pcl::PointCloud< pcl::Histogram<153> >::Ptr object_features ){
+    Eigen::Matrix4f *  align_SPIN( pcl::PointCloud< pcl::Histogram<153> >::Ptr scene_features, 
+                                   pcl::PointCloud< pcl::Histogram<153> >::Ptr object_features ){
 
         typedef pcl::Histogram<153> FeatureT;
-
+      
+        pcl::console::print_highlight ("Starting alignment with SIFT...\n");
         pcl::SampleConsensusPrerejective<PointNT,PointNT,FeatureT> align;
         align.setInputSource (object);
         align.setInputTarget (scene);
         align.setSourceFeatures (object_features);
+         
         align.setTargetFeatures (scene_features);
         align.setMaximumIterations (50000); // Number of RANSAC iterations
         align.setNumberOfSamples (3); // Number of points to sample for generating/prerejecting a pose
@@ -79,37 +82,45 @@ public:
         align.setMaxCorrespondenceDistance (4.0f ); // Inlier threshold
         align.setInlierFraction (0.05f); // Required inlier fraction for accepting a pose hypothesis
         {
+          pcl::console::print_highlight ("3Starting alignment with SIFT...\n");
+          
             pcl::ScopeTime t("Alignment");
             align.align (*object_aligned);
-            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH SPIN FEATURES: %.2f seconds\n",   t.getTime()/1000 ));
+            pcl::console::print_highlight ("4Starting alignment with SIFT...\n");
+            
+            appendLineToFile(logfile,  string_format("ALIGN EFFORT WITH SPIN FEATURES: %.2f seconds\n",   t.getTime()/1000 ));
         }
 
         if(align.hasConverged()){
-            if(filenameBASE=="0"){
-                filenameOUT="__aligned_wSPIN.pcd";
-            } else {
-                filenameOUT = pcl::getFilenameWithoutExtension(filenameBASE).append( "__aligned_wSPIN.pcd" );
-            }
+          pcl::console::print_highlight ("5Starting alignment with SIFT...\n");
+          
+          appendLineToFile(logfile,  string_format("ALIGN EFFORT FPFH SUCCESS!!") );
+          std::string filenameOUT =  filenameBASE+"__aligned_wSPIN.pcd";
+          appendLineToFile(logfile,  string_format("Saving to %s", filenameOUT) );
+          
             Eigen::Matrix4f *transformation = new Eigen::Matrix4f( align.getFinalTransformation () );
  
             printResult( *transformation );
-            saveResult( *transformation );
+            saveResult( *transformation, filenameOUT);
+            appendLineToFile(logfile,  string_format("Saved to %s", filenameOUT) );
 
             return transformation;
         }   else {
-            appendLineToFile("log.txt", string_format("ALIGN EFFORT FAILED!!\n") );
+            appendLineToFile(logfile,  string_format("ALIGN EFFORT FAILED!!\n") );
             pcl::console::print_error ("Alignment failed!\n");
         }
         return nullptr;
     };
 
 
-    Eigen::Matrix4f *  align_FPFH( pcl::PointCloud<pcl::FPFHSignature33>::Ptr scene_features, pcl::PointCloud<pcl::FPFHSignature33>::Ptr object_features ){
+    Eigen::Matrix4f *  align_FPFH( pcl::PointCloud<pcl::FPFHSignature33>::Ptr scene_features, 
+                                   pcl::PointCloud<pcl::FPFHSignature33>::Ptr object_features ){
 
         typedef pcl::FPFHSignature33 FeatureT;
 
 
-        pcl::console::print_highlight ("Starting alignment...\n");
+        pcl::console::print_highlight ("Starting alignment with FPFH...\n");
+         
         pcl::SampleConsensusPrerejective<PointNT,PointNT,FeatureT> align;
         align.setInputSource (object);
         align.setSourceFeatures (object_features);
@@ -121,34 +132,42 @@ public:
         align.setSimilarityThreshold (0.55f); // Polygonal edge length similarity threshold
         align.setMaxCorrespondenceDistance (4.0f ); // Inlier threshold
         align.setInlierFraction (0.05f); // Required inlier fraction for accepting a pose hypothesis
-        {
+        pcl::console::print_highlight ("2Starting alignment with FPFH...\n");
+        
+        {     
+          
+          pcl::console::print_highlight ("3Starting alignment with FPFH...\n");
+          
             pcl::ScopeTime t("Alignment");
             align.align (*object_aligned);
-            appendLineToFile("log.txt", string_format("ALIGN EFFORT WITH FPFH FEATURES: %.2f seconds\n",   t.getTime()/1000 ));
-        }
+            
+         }
+         
+        appendLineToFile(logfile,  string_format("%s -----\n",    filenameBASE.c_str()  ));
+        
         if(align.hasConverged()){
-            if(filenameBASE=="0"){
-                filenameOUT="__aligned_wFPFH.pcd";
-            } else {
-                filenameOUT = pcl::getFilenameWithoutExtension(filenameBASE).append( "__aligned_wFPFH.pcd" );
-            }
-
+          
+          appendLineToFile(logfile,  string_format("ALIGN EFFORT FPFH SUCCESS!!") );
+          std::string filenameOUT =  filenameBASE+"__aligned_wFPFH.pcd";
+          appendLineToFile(logfile,  string_format("Saving to %s", filenameOUT.c_str() ) );
+          
             Eigen::Matrix4f *transformation = new Eigen::Matrix4f( align.getFinalTransformation () );
             printResult( *transformation );
-            saveResult( *transformation );
+            saveResult( *transformation , filenameOUT);
+            appendLineToFile(logfile,  string_format("Saved to %s", filenameOUT.c_str() ) );
             return transformation;
         }   else {
             pcl::console::print_error ("Alignment failed!\n");
-            appendLineToFile("log.txt", string_format("ALIGN EFFORT FAILED!!\n") );
+            appendLineToFile(logfile,  string_format("ALIGN EFFORT FAILED!!\n") );
         }
         return nullptr;
         // Perform alignment
     };
 
-    void saveResult(Eigen::Matrix4f transformation){
+    void saveResult(Eigen::Matrix4f transformation, std::string filenameOUT){
         if(cloud2register!= nullptr){
             PointCloudTi::Ptr transformed_cloud(new PointCloudTi );
-            pcl::console::print_highlight("Saving aligned cloud with %d points.\n", cloud2register->size() );
+            pcl::console::print_highlight("Saving aligned cloud to %s with %d points.\n", filenameOUT, cloud2register->size() );
             pcl::transformPointCloud (*cloud2register, *transformed_cloud, transformation);
             pcl::io::savePCDFile (filenameOUT,  *transformed_cloud, false);
         } else {
@@ -158,7 +177,7 @@ public:
     };
     void printResult(Eigen::Matrix4f transformation){
 
-        appendLineToFile("log.txt", string_format("ALIGN EFFORT SUCCESS!!\n") );
+        appendLineToFile(logfile,  string_format("ALIGN EFFORT SUCCESS!!\n") );
         printf ("\n");
         pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
         pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
@@ -171,29 +190,29 @@ public:
     };
 
 
-    int checkAccuracy(std::vector<float> xcheck, std::vector<float> ycheck){
-        checkAccuracyC2C ca;
-        ca.setMasterCloud(this->scene);
-        ca.setSlaveCloud(this->object_aligned);
-        if(xcheck.size()!=ycheck.size()){
-            appendLineToFile("log.txt", string_format("ACCURACY FAILED, DIFFERENT NUMBER OF X AND Y COORDINATES IN CHECK POINTS (%d AND %d).\n",
-                                                      xcheck.size(),
-                                                      ycheck.size() ) );
-            return -1;
-        }
-        for(int i=0; i < xcheck.size(); i++){
-            PointNT pt;
-            pt.x = xcheck[i];
-            pt.y = ycheck[i];
-            ca.addGCP(pt);
-        }
-        ca.assess();
-
-        appendLineToFile("log.txt", string_format("\nACCURACY RESULTS:\n%s\n=============\n",
-                                                  ca.outputText.c_str() ) );
-
-        return 0;
-    }
+    // int checkAccuracy(std::vector<float> xcheck, std::vector<float> ycheck){
+    //     checkAccuracyC2C ca;
+    //     ca.setMasterCloud(this->scene);
+    //     ca.setSlaveCloud(this->object_aligned);
+    //     if(xcheck.size()!=ycheck.size()){
+    //         appendLineToFile(logfile,  string_format("ACCURACY FAILED, DIFFERENT NUMBER OF X AND Y COORDINATES IN CHECK POINTS (%d AND %d).\n",
+    //                                                   xcheck.size(),
+    //                                                   ycheck.size() ) );
+    //         return -1;
+    //     }
+    //     for(int i=0; i < xcheck.size(); i++){
+    //         PointNT pt;
+    //         pt.x = xcheck[i];
+    //         pt.y = ycheck[i];
+    //         ca.addGCP(pt);
+    //     }
+    //     ca.assess();
+    // 
+    //     appendLineToFile(logfile,  string_format("\nACCURACY RESULTS:\n%s\n=============\n",
+    //                                               ca.outputText.c_str() ) );
+    // 
+    //     return 0;
+    // }
 };
 
 

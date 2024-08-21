@@ -5,6 +5,45 @@
 #ifndef PCAUTOREG_COMMON_H
 #define PCAUTOREG_COMMON_H
 
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <cstring>
+#include <string>
+#include <stdexcept>
+#include <iterator>
+#include <sstream>
+
+using namespace std;
+
+extern float angular_resolution;
+extern float support_size ;
+extern std::string logfile;
+
+extern float range_image_grid_res; // x10 less of support size this can be changed by -s
+
+inline ostream& formatDateTime(
+    ostream& out, const tm& t, const char* fmt) {
+  const time_put<char>& dateWriter =
+    use_facet<time_put<char> >(out.getloc());
+  int n = (int)strlen(fmt);
+  if (dateWriter.put
+        (out, out, ' ', &t, fmt, fmt + n).failed()) {
+    throw runtime_error("failure to format date time");
+  }  
+  return out;
+}
+
+inline string dateTimeToString(const tm& t, const char* format) {
+  stringstream s;
+  formatDateTime(s, t, format);
+  return s.str();
+}
+
+inline tm now() {
+  time_t now = time(0);
+  return *localtime(&now);
+}
 
 inline std::vector<float>  calculateStat(std::vector<float> data) {
     float sum = 0.0, mean, standardDeviation = 0.0, rmse = 0.0;
@@ -60,6 +99,7 @@ static void appendLineToFile(std::string filepath,
 
     file << line << std::endl;
 }
+
 
 
 #endif //PCAUTOREG_COMMON_H

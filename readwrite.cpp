@@ -109,44 +109,45 @@ int readPC(std::string filename, pcl::PointCloud<pcl::PointXYZINormal>::Ptr clou
 
 int getMaxImageWithNormals(std::string filename,
                            pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_in,
-                            pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_out,
-                           // pcl::PointCloud<pcl::Normal>::Ptr cloud_norm,
-                            float max_window_res  ){
+                            pcl::PointCloud<pcl::PointXYZINormal>::Ptr cloud_out 
+                           // pcl::PointCloud<pcl::Normal>::Ptr cloud_norm, float range_image_grid_res
+                             ){
 
     auto t1 = std::chrono::high_resolution_clock::now();
     auto t2 = std::chrono::high_resolution_clock::now();
 
-    //pcl::PointXYZINormal  minPt, maxPt;
-    //pcl::getMinMax3D(*cloud_in, minPt, maxPt);
+    //pcl::PointXYZINormal  minPt, maxPt; getFilenameWithoutExtension
+    //pcl::getMinMax3D(*cloud_in, minPt, maxPt); getFilenameWithoutPath 
 
     std::cout << "Getting MAX image" << std::endl;
     t1 = std::chrono::high_resolution_clock::now();
-    auto outName = pcl::getFilenameWithoutExtension(filename).append( string_format("_maxImage_%06.2f.pcd", max_window_res ) ) ;
+    auto outName = pcl::getFilenameWithoutExtension(filename).append( string_format("_maxImage_%06.2f.pcd", range_image_grid_res ) ) ;
     
     if( std::filesystem::exists(outName) )
     {
         std::cout << "MAX image exists, reading it directly!" << std::endl;
         pcl::io::loadPCDFile( outName ,  *cloud_out );
+        return(0);
 
-    } else {
+    }  
 
-        std::cout << "MAX image does NOT exist, creating!" << std::endl;
-        pcl::GridMaximum<pcl::PointXYZINormal> maxFilter(max_window_res); //(*cloud_in);
-        maxFilter.setInputCloud(cloud_in);
-        maxFilter.filter(*cloud_out);
-    }
+    std::cout << "MAX image does NOT exist, creating!" << std::endl;
+    pcl::GridMaximum<pcl::PointXYZINormal> maxFilter(range_image_grid_res); //(*cloud_in);
+    maxFilter.setInputCloud(cloud_in);
+    maxFilter.filter(*cloud_out);
+   
 
     t2 = std::chrono::high_resolution_clock::now();
     
-    PCL_ALWAYS  ("Finished calculating max image using %.2f resolution: saved to  %s after %d seconds \n",
-               max_window_res,
+    PCL_ALWAYS("Finished calculating max image using %.2f resolution: saved to  %s after %d seconds \n",
+               range_image_grid_res,
                pcl::getFilenameWithoutExtension(filename).append( std::string("_maxImage.pcd") ).c_str(),
                std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() );
     
     std::cout << " --- Getting NORMALS, this step is required ---" << std::endl;
     
     pcl::NormalEstimationOMP<pcl::PointXYZINormal,pcl::PointXYZINormal> nest;
-    nest.setRadiusSearch ( max_window_res*5 );
+    nest.setRadiusSearch ( range_image_grid_res*5 );
     nest.setInputCloud (cloud_out);
     nest.compute (*cloud_out);
     t2 = std::chrono::high_resolution_clock::now();
@@ -185,7 +186,7 @@ int las2keypoints( std::string filename,
       pcl::console::print_warn( "Getting SIFT KEYPOINTS...\n " );
       t1 = std::chrono::high_resolution_clock::now();
 
-      const float min_scale = 0.1f;
+      const float min_scale = 1.0f;
       const int n_octaves = 3;
       const int n_scales_per_octave = 4;
       const float min_contrast = 0.001f;
@@ -232,7 +233,7 @@ int las2keypoints( std::string filename,
 
         t2 = std::chrono::high_resolution_clock::now();
 
-        appendLineToFile("log.txt", string_format(" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
+        appendLineToFile(logfile,  string_format(" --- Finished calculating %d SIFT KEYPOINTS  after %d seconds \n",
                                                   keypointMap["SIFT"]->size(),
                                                   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )  );
 
@@ -275,7 +276,7 @@ int las2keypoints( std::string filename,
       // keypointMap["HARRIS"] = harris.getKeypointsIndices();
        t2 = std::chrono::high_resolution_clock::now();
 
-    appendLineToFile("log.txt", string_format(" --- Finished calculating  %d harris KEYPOINTS  after %d seconds \n",
+    appendLineToFile(logfile,  string_format(" --- Finished calculating  %d harris KEYPOINTS  after %d seconds \n",
              keypointMap["HARRIS"]->size(),
             std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count())  );
 
@@ -294,7 +295,7 @@ int las2keypoints( std::string filename,
       pcl::ISSKeypoint3D<pcl::PointXYZINormal, pcl::PointXYZ> iss;
       pcl::search::KdTree<pcl::PointXYZINormal>::Ptr iss_tree(new pcl::search::KdTree<pcl::PointXYZINormal>());
       iss.setSearchMethod(iss_tree);
-      iss.setSalientRadius(support_size / 9);
+      iss.setSalientRadius(support_size);
       iss.setNonMaxRadius(1);
       //iss.setNormals(cloud_Normals_ptr);
       iss.setInputCloud(cloud_las_gridMax);
@@ -313,7 +314,7 @@ int las2keypoints( std::string filename,
       keypointMap.insert( std::pair<std::string, pcl::IndicesPtr >("ISS", ind_iss) );
       t2 = std::chrono::high_resolution_clock::now();
 
-      appendLineToFile("log.txt", string_format(" --- Finished calculating %d ISS KEYPOINTS  after %d seconds \n",
+      appendLineToFile(logfile,  string_format(" --- Finished calculating %d ISS KEYPOINTS  after %d seconds \n",
                                               keypointMap["ISS"]->size(),
                                               std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count() )  );
       t1 = std::chrono::high_resolution_clock::now();

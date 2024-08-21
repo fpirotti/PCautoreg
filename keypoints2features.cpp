@@ -68,7 +68,7 @@ int  keypoints2features(std::string filename,
     fpfh.compute(* FPFH_signature33);
     t2 = std::chrono::high_resolution_clock::now();
 
-    appendLineToFile("log.txt", string_format("%s:Finished calculating  %d FPFH FEATURES   ... in %d seconds - radius size %.5f\n" ,
+    appendLineToFile(logfile,  string_format("%s:Finished calculating  %d FPFH FEATURES   ... in %d seconds - radius size %.5f\n" ,
                                                 filename.c_str(),
                                               FPFH_signature33->size()  ,   
                                               std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count(),
@@ -89,16 +89,17 @@ int  keypoints2features(std::string filename,
     }
 
 
-    typedef pcl::Histogram<153> SpinImage;
-
-    pcl::SpinImageEstimation<pcl::PointXYZINormal, pcl::Normal, SpinImage> si;
+    typedef pcl::Histogram<153> SpinImage; 
+      
+    
+    pcl::SpinImageEstimation<pcl::PointXYZINormal, pcl::Normal, SpinImage> si(8, 0.5, 16);
     si.setInputCloud(cloud_max);
     si.setInputNormals(cloud_normal);
     // Radius of the support cylinder.
-    si.setRadiusSearch(support_size);
+    si.setRadiusSearch(support_size*10);
     // Set the resolution of the spin image (the number of bins along one dimension).
     // Note: you must change the output histogram size to reflect this.
-    si.setImageWidth(8);
+
     //pcl::IndicesPtr ptr(cloud_keypoints_indices);
 
     if(cloud_keypoints_indices == nullptr || cloud_keypoints_indices->size()==0){
@@ -117,7 +118,7 @@ int  keypoints2features(std::string filename,
                                    support_size );
 
 
-    appendLineToFile("log.txt", string_format("%s: Finished calculating  %d SPIN FEATURES   ... in %d seconds - radius size %.5f \n" ,
+    appendLineToFile(logfile,  string_format("%s: Finished calculating  %d SPIN FEATURES   ... in %d seconds - radius size %.5f \n" ,
                                        filename.c_str(),
                                               SPIN_signature->size()  ,   std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count(),
                                               support_size )
